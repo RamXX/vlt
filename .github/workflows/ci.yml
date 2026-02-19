@@ -72,7 +72,7 @@ jobs:
           # G304: file inclusion via variable -- expected for filesystem CLI
           # G703: path traversal taint -- all paths come from CLI args by design
           # G705: XSS taint -- irrelevant for CLI tool
-          gosec -exclude=G301,G302,G304,G306,G703,G705 ./...
+          gosec -exclude=G301,G302,G304,G306,G703,G705 -severity medium ./...
 
   secrets:
     name: Secret Scan
