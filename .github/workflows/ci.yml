@@ -68,7 +68,11 @@ jobs:
       - name: Run gosec
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@latest
-          gosec -exclude=G304,G703 -severity medium ./...
+          # G301/G302/G306: file/dir permissions -- markdown files use standard 0644/0755
+          # G304: file inclusion via variable -- expected for filesystem CLI
+          # G703: path traversal taint -- all paths come from CLI args by design
+          # G705: XSS taint -- irrelevant for CLI tool
+          gosec -exclude=G301,G302,G304,G306,G703,G705 ./...
 
   secrets:
     name: Secret Scan
