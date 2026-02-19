@@ -93,9 +93,10 @@ vlt search query="architecture"
 | `create name="<title>" path="<path>" [content=...] [silent]` | Create a new note |
 | `append file="<title>" [content="<text>"]` | Append content to end of note |
 | `prepend file="<title>" [content="<text>"]` | Insert content after frontmatter |
-| `move path="<from>" to="<to>"` | Move/rename note (auto-updates wikilinks) |
+| `move path="<from>" to="<to>"` | Move/rename note (auto-updates wikilinks and markdown links) |
 | `delete file="<title>" [permanent]` | Move to .trash (or hard-delete) |
 | `files [folder="<dir>"] [ext="<ext>"] [total]` | List vault files |
+| `daily [date="YYYY-MM-DD"]` | Create or read daily note |
 
 ### Property (frontmatter) operations
 
@@ -121,11 +122,17 @@ vlt search query="architecture"
 | `tags [sort="count"] [counts]` | List all tags in vault |
 | `tag tag="<tagname>"` | Find notes with tag or subtags |
 
+### Task operations
+
+| Command | Description |
+|---------|-------------|
+| `tasks [file="<title>"] [path="<dir>"] [done] [pending]` | List tasks (checkboxes) from one note or vault-wide |
+
 ### Search
 
 | Command | Description |
 |---------|-------------|
-| `search query="<term>"` | Search notes by title and content (case-insensitive) |
+| `search query="<term> [key:value]"` | Search by title, content, and frontmatter properties |
 
 ### Other
 
@@ -182,21 +189,24 @@ vlt understands all standard Obsidian wikilink formats:
 |--------|---------|
 | Simple link | `[[Note Title]]` |
 | Link to heading | `[[Note Title#Section]]` |
+| Block reference | `[[Note Title#^block-id]]` |
 | Display text | `[[Note Title\|Custom Text]]` |
 | Heading + display | `[[Note Title#Section\|Custom Text]]` |
+| Block ref + display | `[[Note Title#^block-id\|Custom Text]]` |
 | Embed | `![[Note Title]]` |
 | Embed with heading + display | `![[Note Title#Section\|Custom Text]]` |
 
-When you rename a note with `move`, vlt automatically updates all wikilinks across the vault:
+When you rename a note with `move`, vlt automatically updates both wikilinks and markdown-style links across the vault:
 
 ```bash
 vlt vault="MyVault" move path="drafts/Old Name.md" to="published/New Name.md"
 # Output:
 # moved: drafts/Old Name.md -> published/New Name.md
 # updated [[Old Name]] -> [[New Name]] in 12 file(s)
+# updated [...](drafts/Old Name.md) -> [...](published/New Name.md) in 3 file(s)
 ```
 
-Link updates preserve headings, display text, and embed prefixes. If only the folder changes (same filename), no link updates are needed since Obsidian resolves by title regardless of path.
+Link updates preserve headings, block references, display text, and embed prefixes. Markdown links have their relative paths recomputed correctly. If only the folder changes (same filename), wikilink updates are skipped since Obsidian resolves by title regardless of path, but markdown links are always updated since they use paths.
 
 ### Tag support
 
@@ -240,6 +250,74 @@ date: 2025-01-15
 EOF
 ```
 
+### Output formats
+
+Most listing commands support `--json`, `--yaml`, and `--csv` output for programmatic consumption:
+
+```bash
+# JSON output for scripts
+vlt vault="MyVault" orphans --json
+# ["_inbox/Stale Note.md","drafts/Abandoned.md"]
+
+# CSV for spreadsheets
+vlt vault="MyVault" tags counts --csv
+# tag,count
+# project,15
+# architecture,8
+
+# YAML for config files
+vlt vault="MyVault" search query="paivot" --yaml
+# - title: Paivot Architecture
+#   path: decisions/Paivot Architecture.md
+```
+
+### Property-based search
+
+Search queries can include `[key:value]` filters to match frontmatter properties:
+
+```bash
+# Find all active decisions
+vlt vault="MyVault" search query="[status:active] [type:decision]"
+
+# Text + property filter
+vlt vault="MyVault" search query="architecture [status:active]"
+
+# Property filter only (no text search)
+vlt vault="MyVault" search query="[type:pattern]"
+```
+
+### Task parsing
+
+vlt parses `- [ ]` and `- [x]` checkboxes from notes:
+
+```bash
+# All tasks across the vault
+vlt vault="MyVault" tasks
+
+# Tasks from a specific note
+vlt vault="MyVault" tasks file="Project Plan"
+
+# Only pending tasks in a folder
+vlt vault="MyVault" tasks path="projects" pending
+
+# JSON output for programmatic use
+vlt vault="MyVault" tasks --json
+```
+
+### Daily notes
+
+Create or read daily notes following Obsidian's daily note conventions:
+
+```bash
+# Today's note (creates if missing, prints if exists)
+vlt vault="MyVault" daily
+
+# Specific date
+vlt vault="MyVault" daily date="2025-01-15"
+```
+
+vlt reads configuration from `.obsidian/daily-notes.json` or `.obsidian/plugins/periodic-notes/data.json`, supporting custom folders, date formats (Moment.js tokens translated to Go), and templates with `{{date}}` and `{{title}}` variables.
+
 ### Output conventions
 
 vlt follows Unix conventions for composability:
@@ -268,13 +346,15 @@ vlt is a drop-in complement for the official [Obsidian CLI](https://github.com/O
 | Capability | vlt | Obsidian CLI |
 |------------|-----|--------------|
 | read | Yes | Yes |
-| search | Yes | Yes |
+| search (with property filters) | Yes | Yes (no filters) |
 | create | Yes | Yes |
 | append | Yes | Yes |
 | prepend | Yes | Yes |
-| move (with link repair) | Yes | Yes |
+| move (wiki + markdown link repair) | Yes | Yes (wiki only) |
 | delete (trash + permanent) | Yes | Yes |
 | files | Yes | Yes |
+| daily notes | Yes | No |
+| tasks | Yes | No |
 | properties | Yes | Yes |
 | property:set | Yes | Yes |
 | property:remove | Yes | Yes |
@@ -285,7 +365,9 @@ vlt is a drop-in complement for the official [Obsidian CLI](https://github.com/O
 | tags (list + counts) | Yes | Yes |
 | tag (search + hierarchical) | Yes | Yes |
 | Alias resolution | Yes | Yes |
+| Block references `#^block-id` | Yes | Yes |
 | Embed `![[...]]` support | Yes | Yes |
+| Output formats (JSON/CSV/YAML) | Yes | No |
 | Requires Obsidian running | **No** | Yes |
 | External dependencies | **None** | Node.js |
 
@@ -296,10 +378,13 @@ vlt is a single-package Go binary with zero external dependencies. The entire to
 ```
 main.go          CLI entry point, argument parsing, command dispatch
 vault.go         Vault discovery from Obsidian config, note resolution
-commands.go      All command implementations
-wikilinks.go     Wikilink/embed parsing, replacement, vault-wide updates
+commands.go      Command implementations (read, search, create, move, etc.)
+wikilinks.go     Wikilink/embed parsing, replacement, markdown link repair
 frontmatter.go   YAML frontmatter extraction and manipulation
 tags.go          Inline tag parsing and tag-based queries
+format.go        Output formatting (JSON, CSV, YAML, plain text)
+tasks.go         Task/checkbox parsing and queries
+daily.go         Daily note creation and config loading
 ```
 
 **Design choices:**
@@ -314,10 +399,10 @@ tags.go          Inline tag parsing and tag-based queries
 
 | Metric | Value |
 |--------|-------|
-| Lines of code | ~1,600 (source) |
-| Lines of tests | ~1,500 |
-| Test cases | 95 |
-| Test coverage | 72% |
+| Lines of code | ~2,500 (source) |
+| Lines of tests | ~2,450 |
+| Test cases | 155 |
+| Test coverage | 71% |
 | External dependencies | 0 |
 | Go version | 1.22+ |
 
@@ -373,14 +458,14 @@ When demand warrants it, we plan to integrate [tantivy](https://github.com/quick
 
 This will be an opt-in feature -- the zero-dependency linear scan remains the default for simplicity. If this matters to you, open an issue or upvote an existing one.
 
-### Other planned features
+### Recently shipped (v0.4.0)
 
-- Block references (`^block-id`)
-- Markdown link `[text](path.md)` repair on move
-- Property-based search filters (`[status:active]`)
-- Output format flags (`--json`, `--yaml`, `--csv`)
-- Daily note commands
-- Task/checkbox parsing
+- Block references (`[[Note#^block-id]]`) -- full support in parsing, rename, and backlinks
+- Markdown link `[text](path.md)` repair on move -- relative paths recomputed correctly
+- Property-based search filters (`search query="[status:active] [type:decision]"`)
+- Output format flags (`--json`, `--yaml`, `--csv`) for all listing commands
+- Daily note commands with Obsidian config support and templates
+- Task/checkbox parsing with done/pending filters and vault-wide search
 
 ## License
 

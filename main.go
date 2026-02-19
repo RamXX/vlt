@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-const version = "0.3.0"
+const version = "0.4.0"
 
 var knownCommands = map[string]bool{
 	"read": true, "search": true, "create": true,
@@ -21,6 +21,7 @@ var knownCommands = map[string]bool{
 	"property:set": true, "property:remove": true, "properties": true,
 	"backlinks": true, "links": true, "orphans": true, "unresolved": true,
 	"tags": true, "tag": true, "files": true,
+	"tasks": true, "daily": true,
 	"vaults": true, "help": true, "version": true,
 }
 
@@ -40,8 +41,10 @@ func main() {
 		fmt.Println("vlt " + version)
 		return
 	}
+	format := outputFormat(flags)
+
 	if cmd == "vaults" {
-		if err := cmdVaults(); err != nil {
+		if err := cmdVaults(format); err != nil {
 			die("%v", err)
 		}
 		return
@@ -69,7 +72,7 @@ func main() {
 	case "read":
 		err = cmdRead(vaultDir, params)
 	case "search":
-		err = cmdSearch(vaultDir, params)
+		err = cmdSearch(vaultDir, params, format)
 	case "create":
 		err = cmdCreate(vaultDir, params, flags["silent"])
 	case "append":
@@ -85,21 +88,25 @@ func main() {
 	case "property:remove":
 		err = cmdPropertyRemove(vaultDir, params)
 	case "properties":
-		err = cmdProperties(vaultDir, params)
+		err = cmdProperties(vaultDir, params, format)
 	case "backlinks":
-		err = cmdBacklinks(vaultDir, params)
+		err = cmdBacklinks(vaultDir, params, format)
 	case "links":
-		err = cmdLinks(vaultDir, params)
+		err = cmdLinks(vaultDir, params, format)
 	case "orphans":
-		err = cmdOrphans(vaultDir)
+		err = cmdOrphans(vaultDir, format)
 	case "unresolved":
-		err = cmdUnresolved(vaultDir)
+		err = cmdUnresolved(vaultDir, format)
 	case "tags":
-		err = cmdTags(vaultDir, params, flags["counts"])
+		err = cmdTags(vaultDir, params, flags["counts"], format)
 	case "tag":
-		err = cmdTag(vaultDir, params)
+		err = cmdTag(vaultDir, params, format)
 	case "files":
-		err = cmdFiles(vaultDir, params, flags["total"])
+		err = cmdFiles(vaultDir, params, flags["total"], format)
+	case "tasks":
+		err = cmdTasks(vaultDir, params, flags)
+	case "daily":
+		err = cmdDaily(vaultDir, params)
 	default:
 		die("unknown command: %s", cmd)
 	}
@@ -150,9 +157,10 @@ File commands:
   create         name="<title>" path="<path>" [content=...] [silent]  Create a note
   append         file="<title>" [content="<text>"]           Append to end of note
   prepend        file="<title>" [content="<text>"]           Prepend after frontmatter
-  move           path="<from>" to="<to>"                     Move/rename (updates wikilinks)
+  move           path="<from>" to="<to>"                     Move/rename (updates wiki + md links)
   delete         file="<title>" [permanent]                  Trash (or permanently delete)
   files          [folder="<dir>"] [ext="<ext>"] [total]      List vault files
+  daily          [date="YYYY-MM-DD"]                         Create or read daily note
 
 Property commands:
   properties     file="<title>"                              Show all frontmatter
@@ -169,8 +177,11 @@ Tag commands:
   tags           [sort="count"] [counts]                     List all tags in vault
   tag            tag="<tagname>"                             Find notes with tag (+ subtags)
 
+Task commands:
+  tasks          [file="<title>"] [path="<dir>"] [done] [pending]  List tasks (checkboxes)
+
 Search:
-  search         query="<term>"                              Search by title and content
+  search         query="<term> [key:value]"                  Search by title, content, properties
 
 Other:
   vaults                                                     List discovered vaults
@@ -181,13 +192,28 @@ Options:
   permanent        Hard delete instead of .trash.
   counts           Show note counts with tags.
   total            Show count instead of listing files.
+  done             Show only completed tasks.
+  pending          Show only pending tasks.
+  --json           Output in JSON format.
+  --yaml           Output in YAML format.
+  --csv            Output in CSV format.
 
 Content from stdin:
   If content= is omitted for create/append/prepend, content is read from stdin.
 
+Search filters:
+  Property filters can be embedded in search queries: query="term [key:value]"
+  Multiple filters: query="architecture [status:active] [type:decision]"
+  Filter-only: query="[status:active]"
+
+Wikilink support:
+  [[Note]], [[Note#Heading]], [[Note#^block-id]], [[Note|Display]], ![[Embed]]
+  Block references (^block-id) are fully supported in parsing, rename, and backlinks.
+
 Examples:
   vlt vault="Claude" read file="Session Operating Mode"
   vlt vault="Claude" search query="paivot"
+  vlt vault="Claude" search query="[status:active] [type:decision]"
   vlt vault="Claude" create name="My Note" path="_inbox/My Note.md" content="# Hello" silent
   echo "## Update" | vlt vault="Claude" append file="My Note"
   vlt vault="Claude" prepend file="My Note" content="New section at top"
@@ -205,6 +231,13 @@ Examples:
   vlt vault="Claude" tag tag="project"
   vlt vault="Claude" files folder="methodology"
   vlt vault="Claude" files total
+  vlt vault="Claude" tasks
+  vlt vault="Claude" tasks file="Project Plan" pending
+  vlt vault="Claude" tasks path="projects" --json
+  vlt vault="Claude" daily
+  vlt vault="Claude" daily date="2025-01-15"
+  vlt vault="Claude" orphans --json
+  vlt vault="Claude" search query="architecture" --csv
   vlt vaults
 `)
 }

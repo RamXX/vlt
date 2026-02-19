@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -351,6 +352,47 @@ func TestCmdMove_FolderOnlyNoLinkUpdate(t *testing.T) {
 	}
 }
 
+func TestCmdMove_UpdatesMdLinks(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	os.MkdirAll(filepath.Join(vaultDir, "_inbox"), 0755)
+
+	// The note being moved
+	os.WriteFile(
+		filepath.Join(vaultDir, "_inbox", "Note.md"),
+		[]byte("# Note\n"),
+		0644,
+	)
+
+	// Another note referencing it via markdown link
+	os.WriteFile(
+		filepath.Join(vaultDir, "Referrer.md"),
+		[]byte("See [note](_inbox/Note.md) and [heading](_inbox/Note.md#section) here.\n"),
+		0644,
+	)
+
+	params := map[string]string{
+		"path": "_inbox/Note.md",
+		"to":   "decisions/Note.md",
+	}
+	if err := cmdMove(vaultDir, params); err != nil {
+		t.Fatalf("move: %v", err)
+	}
+
+	data, _ := os.ReadFile(filepath.Join(vaultDir, "Referrer.md"))
+	got := string(data)
+
+	if strings.Contains(got, "_inbox/Note.md") {
+		t.Error("old markdown link path still present")
+	}
+	if !strings.Contains(got, "decisions/Note.md") {
+		t.Error("new markdown link path not found")
+	}
+	if !strings.Contains(got, "decisions/Note.md#section") {
+		t.Error("markdown link fragment not preserved")
+	}
+}
+
 func TestCmdBacklinks(t *testing.T) {
 	vaultDir := t.TempDir()
 
@@ -369,7 +411,7 @@ func TestCmdBacklinks(t *testing.T) {
 
 	// Just verify no error (output goes to stdout)
 	params := map[string]string{"file": "Session Operating Mode"}
-	if err := cmdBacklinks(vaultDir, params); err != nil {
+	if err := cmdBacklinks(vaultDir, params, ""); err != nil {
 		t.Fatalf("backlinks: %v", err)
 	}
 }
@@ -395,7 +437,7 @@ func TestCmdLinks(t *testing.T) {
 
 	// Just verify no error (output goes to stdout)
 	params := map[string]string{"file": "Developer Agent"}
-	if err := cmdLinks(vaultDir, params); err != nil {
+	if err := cmdLinks(vaultDir, params, ""); err != nil {
 		t.Fatalf("links: %v", err)
 	}
 }
@@ -465,8 +507,106 @@ func TestCmdSearch(t *testing.T) {
 
 	params := map[string]string{"query": "paivot"}
 	// cmdSearch writes to stdout; just verify no error
-	if err := cmdSearch(vaultDir, params); err != nil {
+	if err := cmdSearch(vaultDir, params, ""); err != nil {
 		t.Fatalf("search: %v", err)
+	}
+}
+
+func TestParseSearchQuery(t *testing.T) {
+	tests := []struct {
+		query       string
+		wantText    string
+		wantFilters map[string]string
+	}{
+		{
+			query:       "architecture",
+			wantText:    "architecture",
+			wantFilters: map[string]string{},
+		},
+		{
+			query:       "architecture [status:active]",
+			wantText:    "architecture",
+			wantFilters: map[string]string{"status": "active"},
+		},
+		{
+			query:       "[status:active] [type:decision]",
+			wantText:    "",
+			wantFilters: map[string]string{"status": "active", "type": "decision"},
+		},
+		{
+			query:       "search term [status:active] more text",
+			wantText:    "search term  more text",
+			wantFilters: map[string]string{"status": "active"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.query, func(t *testing.T) {
+			text, filters := parseSearchQuery(tt.query)
+			if text != tt.wantText {
+				t.Errorf("text = %q, want %q", text, tt.wantText)
+			}
+			if len(filters) != len(tt.wantFilters) {
+				t.Errorf("got %d filters, want %d", len(filters), len(tt.wantFilters))
+			}
+			for k, v := range tt.wantFilters {
+				if filters[k] != v {
+					t.Errorf("filter[%q] = %q, want %q", k, filters[k], v)
+				}
+			}
+		})
+	}
+}
+
+func TestCmdSearch_PropertyFilter(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	os.MkdirAll(filepath.Join(vaultDir, "decisions"), 0755)
+
+	os.WriteFile(filepath.Join(vaultDir, "decisions", "Active Decision.md"),
+		[]byte("---\ntype: decision\nstatus: active\n---\n\n# Active\nSome content."), 0644)
+
+	os.WriteFile(filepath.Join(vaultDir, "decisions", "Archived Decision.md"),
+		[]byte("---\ntype: decision\nstatus: archived\n---\n\n# Archived\nOther content."), 0644)
+
+	os.WriteFile(filepath.Join(vaultDir, "decisions", "No Frontmatter.md"),
+		[]byte("# No FM\nPlain note."), 0644)
+
+	// Filter by status:active should find only the active note
+	params := map[string]string{"query": "[status:active]"}
+	// Just verify no error; output goes to stdout
+	if err := cmdSearch(vaultDir, params, ""); err != nil {
+		t.Fatalf("search with property filter: %v", err)
+	}
+}
+
+func TestCmdSearch_PropertyFilterWithText(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(vaultDir, "Match.md"),
+		[]byte("---\nstatus: active\n---\n\n# Match\narchitecture discussion."), 0644)
+
+	os.WriteFile(filepath.Join(vaultDir, "NoMatch.md"),
+		[]byte("---\nstatus: archived\n---\n\n# NoMatch\narchitecture discussion."), 0644)
+
+	params := map[string]string{"query": "architecture [status:active]"}
+	if err := cmdSearch(vaultDir, params, ""); err != nil {
+		t.Fatalf("search with text + filter: %v", err)
+	}
+}
+
+func TestCmdSearch_MultipleFilters(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(vaultDir, "Both.md"),
+		[]byte("---\ntype: decision\nstatus: active\n---\n\n# Both\nContent."), 0644)
+
+	os.WriteFile(filepath.Join(vaultDir, "OneOnly.md"),
+		[]byte("---\ntype: pattern\nstatus: active\n---\n\n# OneOnly\nContent."), 0644)
+
+	params := map[string]string{"query": "[type:decision] [status:active]"}
+	if err := cmdSearch(vaultDir, params, ""); err != nil {
+		t.Fatalf("search with multiple filters: %v", err)
 	}
 }
 
@@ -568,7 +708,7 @@ func TestCmdProperties(t *testing.T) {
 
 	// Just verify no error (output goes to stdout)
 	params := map[string]string{"file": "Props"}
-	if err := cmdProperties(vaultDir, params); err != nil {
+	if err := cmdProperties(vaultDir, params, ""); err != nil {
 		t.Fatalf("properties: %v", err)
 	}
 }
@@ -616,7 +756,7 @@ func TestCmdOrphans(t *testing.T) {
 	)
 
 	// Just verify no error
-	if err := cmdOrphans(vaultDir); err != nil {
+	if err := cmdOrphans(vaultDir, ""); err != nil {
 		t.Fatalf("orphans: %v", err)
 	}
 }
@@ -643,7 +783,7 @@ func TestCmdOrphans_AliasAware(t *testing.T) {
 
 	// Just verify no error (A is orphaned since nothing links to it,
 	// B is NOT orphaned due to alias, C is orphaned)
-	if err := cmdOrphans(vaultDir); err != nil {
+	if err := cmdOrphans(vaultDir, ""); err != nil {
 		t.Fatalf("orphans: %v", err)
 	}
 }
@@ -663,7 +803,7 @@ func TestCmdUnresolved(t *testing.T) {
 	)
 
 	// Just verify no error
-	if err := cmdUnresolved(vaultDir); err != nil {
+	if err := cmdUnresolved(vaultDir, ""); err != nil {
 		t.Fatalf("unresolved: %v", err)
 	}
 }
@@ -679,18 +819,18 @@ func TestCmdFiles(t *testing.T) {
 
 	// List all
 	params := map[string]string{}
-	if err := cmdFiles(vaultDir, params, false); err != nil {
+	if err := cmdFiles(vaultDir, params, false, ""); err != nil {
 		t.Fatalf("files: %v", err)
 	}
 
 	// Total count
-	if err := cmdFiles(vaultDir, params, true); err != nil {
+	if err := cmdFiles(vaultDir, params, true, ""); err != nil {
 		t.Fatalf("files total: %v", err)
 	}
 
 	// Filter by folder
 	params = map[string]string{"folder": "sub"}
-	if err := cmdFiles(vaultDir, params, false); err != nil {
+	if err := cmdFiles(vaultDir, params, false, ""); err != nil {
 		t.Fatalf("files folder: %v", err)
 	}
 }
