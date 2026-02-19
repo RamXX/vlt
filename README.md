@@ -1,5 +1,10 @@
 # vlt
 
+[![CI](https://github.com/RamXX/vlt/actions/workflows/ci.yml/badge.svg)](https://github.com/RamXX/vlt/actions/workflows/ci.yml)
+[![Release](https://github.com/RamXX/vlt/actions/workflows/release.yml/badge.svg)](https://github.com/RamXX/vlt/actions/workflows/release.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/RamXX/vlt)](https://goreportcard.com/report/github.com/RamXX/vlt)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 Fast, standalone CLI for Obsidian vault operations. No Electron, no app dependency, no network calls. Just your vault and the filesystem.
 
 ```
@@ -471,4 +476,4 @@ This will be an opt-in feature -- the zero-dependency linear scan remains the de
 
 Apache License 2.0. See [LICENSE](LICENSE) for full text.
 
-Copyright 2025 vlt Contributors.
+Copyright 2025 Ramiro Salas.
