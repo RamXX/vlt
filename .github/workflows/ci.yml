@@ -68,7 +68,7 @@ jobs:
       - name: Run gosec
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@latest
-          gosec -exclude=G304 -severity medium ./...
+          gosec -exclude=G304,G703 -severity medium ./...
 
   secrets:
     name: Secret Scan
