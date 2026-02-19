@@ -212,7 +212,7 @@ Wikilink support:
 
 Examples:
   vlt vault="Claude" read file="Session Operating Mode"
-  vlt vault="Claude" search query="paivot"
+  vlt vault="Claude" search query="architecture"
   vlt vault="Claude" search query="[status:active] [type:decision]"
   vlt vault="Claude" create name="My Note" path="_inbox/My Note.md" content="# Hello" silent
   echo "## Update" | vlt vault="Claude" append file="My Note"

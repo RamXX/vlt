@@ -31,7 +31,7 @@ vlt is not a replacement for Obsidian. It's a power tool for the command line th
 ### From source (requires Go 1.22+)
 
 ```bash
-git clone https://github.com/paivot/vlt.git
+git clone https://github.com/RamXX/vlt.git
 cd vlt
 make build     # produces ./vlt binary
 make install   # installs to $GOPATH/bin
@@ -39,7 +39,7 @@ make install   # installs to $GOPATH/bin
 
 ### Pre-built binaries
 
-Check [Releases](https://github.com/paivot/vlt/releases) for pre-built binaries for macOS, Linux, and Windows.
+Check [Releases](https://github.com/RamXX/vlt/releases) for pre-built binaries for macOS, Linux, and Windows.
 
 ## Quick start
 
@@ -266,9 +266,9 @@ vlt vault="MyVault" tags counts --csv
 # architecture,8
 
 # YAML for config files
-vlt vault="MyVault" search query="paivot" --yaml
-# - title: Paivot Architecture
-#   path: decisions/Paivot Architecture.md
+vlt vault="MyVault" search query="architecture" --yaml
+# - title: System Architecture
+#   path: decisions/System Architecture.md
 ```
 
 ### Property-based search
@@ -471,4 +471,4 @@ This will be an opt-in feature -- the zero-dependency linear scan remains the de
 
 Apache License 2.0. See [LICENSE](LICENSE) for full text.
 
-Copyright 2025 Paivot Contributors.
+Copyright 2025 vlt Contributors.

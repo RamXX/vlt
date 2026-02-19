@@ -1,3 +1,3 @@
-module github.com/paivot/vlt
+module github.com/RamXX/vlt
 
 go 1.22

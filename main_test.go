@@ -31,9 +31,9 @@ func TestParseArgs(t *testing.T) {
 		},
 		{
 			name:       "search command",
-			args:       []string{"vault=Claude", "search", "query=paivot"},
+			args:       []string{"vault=Claude", "search", "query=architecture"},
 			wantCmd:    "search",
-			wantParams: map[string]string{"vault": "Claude", "query": "paivot"},
+			wantParams: map[string]string{"vault": "Claude", "query": "architecture"},
 			wantFlags:  map[string]bool{},
 		},
 		{
@@ -490,22 +490,22 @@ func TestCmdSearch(t *testing.T) {
 	os.MkdirAll(filepath.Join(vaultDir, ".obsidian"), 0755)
 
 	// Note with matching title
-	os.WriteFile(filepath.Join(vaultDir, "decisions", "Paivot Architecture.md"),
+	os.WriteFile(filepath.Join(vaultDir, "decisions", "System Architecture.md"),
 		[]byte("# Architecture\nSome content."), 0644)
 
 	// Note with matching content but not title
 	os.WriteFile(filepath.Join(vaultDir, "decisions", "Other Decision.md"),
-		[]byte("# Other\nThis relates to paivot infrastructure."), 0644)
+		[]byte("# Other\nThis relates to system infrastructure."), 0644)
 
 	// Note that should not match
 	os.WriteFile(filepath.Join(vaultDir, "decisions", "Unrelated.md"),
 		[]byte("# Unrelated\nNothing here."), 0644)
 
 	// Hidden note that should be skipped
-	os.WriteFile(filepath.Join(vaultDir, ".obsidian", "paivot-config.md"),
-		[]byte("# Config\npaivot settings."), 0644)
+	os.WriteFile(filepath.Join(vaultDir, ".obsidian", "system-config.md"),
+		[]byte("# Config\nsystem settings."), 0644)
 
-	params := map[string]string{"query": "paivot"}
+	params := map[string]string{"query": "system"}
 	// cmdSearch writes to stdout; just verify no error
 	if err := cmdSearch(vaultDir, params, ""); err != nil {
 		t.Fatalf("search: %v", err)
