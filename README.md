@@ -289,15 +289,6 @@ vlt is a drop-in complement for the official [Obsidian CLI](https://github.com/O
 | Requires Obsidian running | **No** | Yes |
 | External dependencies | **None** | Node.js |
 
-### Gaps (planned for future releases)
-
-- Block references (`^block-id`)
-- Markdown link `[text](path.md)` repair on move
-- Property-based search filters (`[status:active]`)
-- Output format flags (`--json`, `--yaml`, `--csv`)
-- Daily note commands
-- Task/checkbox parsing
-
 ## Architecture
 
 vlt is a single-package Go binary with zero external dependencies. The entire tool runs on Go's standard library.
@@ -366,6 +357,30 @@ Contributions are welcome. Please:
 3. Keep the zero-dependency constraint -- no external modules
 4. Follow the existing code style (simple, direct, no abstractions for one-off operations)
 5. Run `make test` before submitting
+
+## Roadmap
+
+### Indexed full-text search (tantivy)
+
+The current `search` command is a linear scan -- it reads every `.md` file in the vault on each query. For human-scale vaults (a few thousand notes) this is fast enough thanks to OS page cache. But vlt was built with AI agents in mind, and agents doing proper zettelkasten produce vaults that grow far beyond what a human would maintain by hand.
+
+When demand warrants it, we plan to integrate [tantivy](https://github.com/quickwit-oss/tantivy) (the Rust full-text search engine that powers Quickwit and Meilisearch) to provide:
+
+- Persistent inverted index with incremental updates
+- Sub-millisecond search across arbitrarily large vaults
+- Relevance-ranked results
+- Fuzzy matching and phrase queries
+
+This will be an opt-in feature -- the zero-dependency linear scan remains the default for simplicity. If this matters to you, open an issue or upvote an existing one.
+
+### Other planned features
+
+- Block references (`^block-id`)
+- Markdown link `[text](path.md)` repair on move
+- Property-based search filters (`[status:active]`)
+- Output format flags (`--json`, `--yaml`, `--csv`)
+- Daily note commands
+- Task/checkbox parsing
 
 ## License
 
