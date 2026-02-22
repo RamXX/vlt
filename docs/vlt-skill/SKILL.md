@@ -81,8 +81,8 @@ All listing commands support structured output:
 | `patch` | Edit by heading or line | `file=`, `heading=`/`line=`, `content=`/`delete` |
 | `delete` | Trash or hard-delete | `file=`, `permanent` (optional) |
 | `move` | Rename with link repair | `path=`, `to=` |
-| `daily` | Create/read daily note | `content=`, `template=` (optional) |
-| `files` | List vault files | `folder=`, `ext=` (optional filters) |
+| `daily` | Create/read daily note | `date=` (optional, default today) |
+| `files` | List vault files | `folder=`, `ext=`, `total` (optional) |
 
 ### Properties
 

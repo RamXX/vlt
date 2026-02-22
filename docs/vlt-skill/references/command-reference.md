@@ -206,16 +206,16 @@ vlt vault="V" move path="old/path.md" to="new/path.md"
 Create or read a daily note using Obsidian daily note configuration.
 
 ```bash
-vlt vault="V" daily                          # Read today's daily note
-vlt vault="V" daily content="Log entry"      # Create/append to daily
-vlt vault="V" daily template="Daily Template" # Create from template
+vlt vault="V" daily                    # Today's note (creates if missing, prints if exists)
+vlt vault="V" daily date="2025-01-15"  # Specific date
 ```
 
 **Parameters:**
-- `content=` (optional) -- Content for the daily note
-- `template=` (optional) -- Template name to use
+- `date=` (optional) -- Date in `YYYY-MM-DD` format (defaults to today)
 
 **Behavior:**
+- If the daily note exists, prints its content
+- If the daily note does not exist, creates it (using template from Obsidian config if configured)
 - Reads config from `.obsidian/daily-notes.json` or `.obsidian/plugins/periodic-notes/data.json`
 - Respects configured folder and date format
 - Translates Moment.js format tokens to Go equivalents
@@ -229,6 +229,7 @@ List files in the vault with optional filtering.
 ```bash
 vlt vault="V" files
 vlt vault="V" files folder="decisions" ext=".md"
+vlt vault="V" files total
 vlt vault="V" files --json
 vlt vault="V" files --tree
 ```
@@ -236,6 +237,9 @@ vlt vault="V" files --tree
 **Parameters:**
 - `folder=` (optional) -- Restrict to a subdirectory
 - `ext=` (optional) -- Filter by file extension (e.g., `.md`)
+
+**Flags:**
+- `total` -- Show count instead of listing files
 
 ---
 
