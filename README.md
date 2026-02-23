@@ -647,6 +647,10 @@ All tests use `t.TempDir()` for isolated vault environments. No mocks -- every t
 6. Write library tests in a `*_test.go` file at the root (test return values, not stdout)
 7. Write format tests in `cmd/vlt/format_test.go` if adding new output formatting
 
+## Built with `vlt`
+
+`vlt` proved to be so effective and fast, that became the back-end engine for the `nd` issue tracker, found at https://github.com/RamXX/nd. `nd` enforces a strict [Beads](https://github.com/steveyegge/beads)-compatible worflow but using the flexibility and cleanliness of `vlt` in the back-end.
+
 ## Contributing
 
 Contributions are welcome. Please:
