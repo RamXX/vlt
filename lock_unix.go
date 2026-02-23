@@ -18,17 +18,18 @@ func lockVault(vaultDir string, exclusive bool) (func(), error) {
 		return nil, err
 	}
 
+	fd := int(f.Fd()) // #nosec G115 -- file descriptors fit in int
 	how := syscall.LOCK_SH
 	if exclusive {
 		how = syscall.LOCK_EX
 	}
-	if err := syscall.Flock(int(f.Fd()), how); err != nil {
+	if err := syscall.Flock(fd, how); err != nil {
 		f.Close()
 		return nil, err
 	}
 
 	return func() {
-		syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		syscall.Flock(fd, syscall.LOCK_UN)
 		f.Close()
 	}, nil
 }
