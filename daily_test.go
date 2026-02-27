@@ -93,7 +93,7 @@ func TestLoadDailyConfig_PeriodicNotes(t *testing.T) {
 func TestDaily_CreateNew(t *testing.T) {
 	vaultDir := t.TempDir()
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	result, err := v.Daily("")
 	if err != nil {
 		t.Fatalf("Daily create: %v", err)
@@ -128,7 +128,7 @@ func TestDaily_ReadExisting(t *testing.T) {
 		0644,
 	)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	result, err := v.Daily("")
 	if err != nil {
 		t.Fatalf("Daily read: %v", err)
@@ -145,7 +145,7 @@ func TestDaily_ReadExisting(t *testing.T) {
 func TestDaily_SpecificDate(t *testing.T) {
 	vaultDir := t.TempDir()
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	result, err := v.Daily("2025-06-15")
 	if err != nil {
 		t.Fatalf("Daily specific date: %v", err)
@@ -184,7 +184,7 @@ func TestDaily_WithTemplate(t *testing.T) {
 		0644,
 	)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	result, err := v.Daily("2025-03-20")
 	if err != nil {
 		t.Fatalf("Daily with template: %v", err)
@@ -222,7 +222,7 @@ func TestDaily_WithFolder(t *testing.T) {
 		0644,
 	)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	_, err := v.Daily("2025-06-15")
 	if err != nil {
 		t.Fatalf("Daily with folder: %v", err)
@@ -237,7 +237,7 @@ func TestDaily_WithFolder(t *testing.T) {
 func TestDaily_InvalidDate(t *testing.T) {
 	vaultDir := t.TempDir()
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	_, err := v.Daily("not-a-date")
 	if err == nil {
 		t.Fatal("expected error for invalid date")

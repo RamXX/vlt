@@ -26,6 +26,7 @@ var knownCommands = map[string]bool{
 	"tags": true, "tag": true, "files": true,
 	"tasks": true, "daily": true, "templates": true, "templates:apply": true,
 	"bookmarks": true, "bookmarks:add": true, "bookmarks:remove": true,
+	"integrity:baseline": true, "integrity:acknowledge": true, "integrity:status": true,
 	"uri":    true,
 	"vaults": true, "help": true, "version": true,
 }
@@ -136,6 +137,12 @@ func main() {
 		err = dispatchBookmarksAdd(v, params)
 	case "bookmarks:remove":
 		err = dispatchBookmarksRemove(v, params)
+	case "integrity:baseline":
+		err = dispatchIntegrityBaseline(v)
+	case "integrity:acknowledge":
+		err = dispatchIntegrityAcknowledge(v, params)
+	case "integrity:status":
+		err = dispatchIntegrityStatus(v, format)
 	case "uri":
 		err = dispatchURI(v, vaultName, params)
 	default:
@@ -246,6 +253,12 @@ Bookmark commands:
   bookmarks                                                    List bookmarked file paths
   bookmarks:add  file="<title>"                                Add a bookmark for a note
   bookmarks:remove file="<title>"                              Remove a bookmark
+
+Integrity commands:
+  integrity:baseline                                             Register all vault files for integrity tracking
+  integrity:status                                               Show integrity status of all registered files
+  integrity:acknowledge file="<title>"                           Re-register a file after external modification
+  integrity:acknowledge since="<duration>"                       Re-register files modified within duration (e.g., "1h")
 
 URI commands:
   uri            file="<title>" [heading="<H>"] [block="<B>"]  Generate obsidian:// URI for a note

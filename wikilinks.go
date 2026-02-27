@@ -66,7 +66,8 @@ func ReplaceWikilinks(text, oldTitle, newTitle string) string {
 
 // updateVaultLinks scans all .md files in vaultDir and replaces wikilinks
 // from oldTitle to newTitle. Returns the number of files modified.
-func updateVaultLinks(vaultDir, oldTitle, newTitle string) (int, error) {
+// If reg is non-nil, updated files are registered for integrity tracking.
+func updateVaultLinks(vaultDir, oldTitle, newTitle string, reg *Registry) (int, error) {
 	modified := 0
 
 	err := filepath.WalkDir(vaultDir, func(path string, d os.DirEntry, err error) error {
@@ -90,8 +91,12 @@ func updateVaultLinks(vaultDir, oldTitle, newTitle string) (int, error) {
 		text := string(data)
 		updated := ReplaceWikilinks(text, oldTitle, newTitle)
 		if updated != text {
-			if err := os.WriteFile(path, []byte(updated), 0644); err != nil {
+			updatedBytes := []byte(updated)
+			if err := os.WriteFile(path, updatedBytes, 0644); err != nil {
 				return fmt.Errorf("failed to update %s: %w", path, err)
+			}
+			if reg != nil {
+				reg.register(vaultDir, path, updatedBytes)
 			}
 			modified++
 		}
@@ -108,7 +113,8 @@ var mdLinkPattern = regexp.MustCompile(`\[([^\]]*)\]\(([^)]+\.md(?:#[^)]*)?)\)`)
 // markdown-style [text](path.md) links when a file is moved/renamed.
 // oldRelPath and newRelPath are vault-relative paths.
 // Returns the number of files modified.
-func updateVaultMdLinks(vaultDir, oldRelPath, newRelPath string) (int, error) {
+// If reg is non-nil, updated files are registered for integrity tracking.
+func updateVaultMdLinks(vaultDir, oldRelPath, newRelPath string, reg *Registry) (int, error) {
 	modified := 0
 
 	err := filepath.WalkDir(vaultDir, func(path string, d os.DirEntry, err error) error {
@@ -173,8 +179,12 @@ func updateVaultMdLinks(vaultDir, oldRelPath, newRelPath string) (int, error) {
 		})
 
 		if updated != text {
-			if err := os.WriteFile(path, []byte(updated), 0644); err != nil {
+			updatedBytes := []byte(updated)
+			if err := os.WriteFile(path, updatedBytes, 0644); err != nil {
 				return fmt.Errorf("failed to update %s: %w", path, err)
+			}
+			if reg != nil {
+				reg.register(vaultDir, path, updatedBytes)
 			}
 			modified++
 		}

@@ -248,7 +248,7 @@ func TestBookmarksListIntegration(t *testing.T) {
 	data, _ := json.Marshal(bm)
 	os.WriteFile(filepath.Join(vaultDir, ".obsidian", "bookmarks.json"), data, 0644)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	paths, err := v.Bookmarks()
 	if err != nil {
 		t.Fatalf("Bookmarks: %v", err)
@@ -282,7 +282,7 @@ func TestBookmarksAddIntegration(t *testing.T) {
 	os.WriteFile(filepath.Join(vaultDir, ".obsidian", "bookmarks.json"), data, 0644)
 
 	// Add bookmark
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	_, err := v.BookmarksAdd("MyNote")
 	if err != nil {
 		t.Fatalf("BookmarksAdd: %v", err)
@@ -320,7 +320,7 @@ func TestBookmarksRemoveIntegration(t *testing.T) {
 	os.WriteFile(filepath.Join(vaultDir, ".obsidian", "bookmarks.json"), data, 0644)
 
 	// Remove bookmark
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	if err := v.BookmarksRemove("RemoveMe"); err != nil {
 		t.Fatalf("BookmarksRemove: %v", err)
 	}
@@ -356,7 +356,7 @@ func TestBookmarksAddResolvesTitle(t *testing.T) {
 	os.WriteFile(filepath.Join(vaultDir, ".obsidian", "bookmarks.json"), data, 0644)
 
 	// Add by title
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	_, err := v.BookmarksAdd("Hidden Gem")
 	if err != nil {
 		t.Fatalf("BookmarksAdd: %v", err)
@@ -382,7 +382,7 @@ func TestBookmarksAddCreatesObsidianDir(t *testing.T) {
 	os.WriteFile(filepath.Join(vaultDir, "NewNote.md"), []byte("# New Note\n"), 0644)
 
 	// Add bookmark -- should create .obsidian/ and bookmarks.json
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	_, err := v.BookmarksAdd("NewNote")
 	if err != nil {
 		t.Fatalf("BookmarksAdd: %v", err)
@@ -410,7 +410,7 @@ func TestBookmarksListNoObsidianDir(t *testing.T) {
 	vaultDir := t.TempDir()
 	// No .obsidian directory
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	paths, err := v.Bookmarks()
 	if err != nil {
 		t.Fatalf("Bookmarks should not error on missing dir: %v", err)
@@ -429,7 +429,7 @@ func TestBookmarksRemoveNoFile(t *testing.T) {
 	// Create the note so resolveNote works
 	os.WriteFile(filepath.Join(vaultDir, "Orphan.md"), []byte("# Orphan\n"), 0644)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	err := v.BookmarksRemove("Orphan")
 	if err == nil {
 		t.Fatal("BookmarksRemove should error when bookmarks.json does not exist")
@@ -456,7 +456,7 @@ func TestBookmarksAddDuplicateIntegration(t *testing.T) {
 	os.WriteFile(filepath.Join(vaultDir, ".obsidian", "bookmarks.json"), data, 0644)
 
 	// Add again -- should be a no-op
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	_, err := v.BookmarksAdd("Dup")
 	if err != nil {
 		t.Fatalf("BookmarksAdd duplicate: %v", err)

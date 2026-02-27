@@ -290,32 +290,35 @@ func encodeURIComponent(s string) string {
 // Vault methods
 // -----------------------------------------------------------------
 
-// Read returns the contents of a note resolved by title.
+// Read returns the contents of a note resolved by title, along with its
+// integrity status.
 // If heading is non-empty, only the specified section is returned
 // (heading line + content through the next same-or-higher-level heading).
-func (v *Vault) Read(title, heading string) (string, error) {
+func (v *Vault) Read(title, heading string) (ReadResult, error) {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
 
 	path, err := resolveNote(v.dir, title)
 	if err != nil {
-		return "", err
+		return ReadResult{}, err
 	}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return "", err
+		return ReadResult{}, err
 	}
 
+	status := v.registry.verify(v.dir, path, data)
+
 	if heading == "" {
-		return string(data), nil
+		return ReadResult{Content: string(data), Integrity: status}, nil
 	}
 
 	// Heading-scoped read: find the section and return heading + content.
 	lines := strings.Split(string(data), "\n")
 	bounds, found := findSection(lines, heading)
 	if !found {
-		return "", fmt.Errorf("heading %q not found in %q", heading, title)
+		return ReadResult{}, fmt.Errorf("heading %q not found in %q", heading, title)
 	}
 
 	// Extract from heading line through end of section.
@@ -327,7 +330,7 @@ func (v *Vault) Read(title, heading string) (string, error) {
 		output += "\n"
 	}
 
-	return output, nil
+	return ReadResult{Content: output, Integrity: status}, nil
 }
 
 // LinkedNote holds a related note's title and content, returned by ReadFollow
@@ -338,29 +341,31 @@ type LinkedNote struct {
 	Content string // full file content
 }
 
-// ReadFollow returns the content of the requested note plus the full content
-// of every note it forward-links to (depth 1). This lets callers retrieve a
-// note's entire link neighborhood in a single call.
-func (v *Vault) ReadFollow(title, heading string) (string, []LinkedNote, error) {
+// ReadFollow returns the content of the requested note (with integrity status)
+// plus the full content of every note it forward-links to (depth 1). This lets
+// callers retrieve a note's entire link neighborhood in a single call.
+func (v *Vault) ReadFollow(title, heading string) (ReadResult, []LinkedNote, error) {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
 
 	path, err := resolveNote(v.dir, title)
 	if err != nil {
-		return "", nil, err
+		return ReadResult{}, nil, err
 	}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return "", nil, err
+		return ReadResult{}, nil, err
 	}
+
+	status := v.registry.verify(v.dir, path, data)
 
 	primary := string(data)
 	if heading != "" {
 		lines := strings.Split(primary, "\n")
 		bounds, found := findSection(lines, heading)
 		if !found {
-			return "", nil, fmt.Errorf("heading %q not found in %q", heading, title)
+			return ReadResult{}, nil, fmt.Errorf("heading %q not found in %q", heading, title)
 		}
 		section := lines[bounds.HeadingLine:bounds.ContentEnd]
 		primary = strings.Join(section, "\n")
@@ -395,31 +400,33 @@ func (v *Vault) ReadFollow(title, heading string) (string, []LinkedNote, error) 
 		})
 	}
 
-	return primary, linked, nil
+	return ReadResult{Content: primary, Integrity: status}, linked, nil
 }
 
-// ReadWithBacklinks returns the content of the requested note plus the full
-// content of every note that links TO it (depth 1 backlinks).
-func (v *Vault) ReadWithBacklinks(title, heading string) (string, []LinkedNote, error) {
+// ReadWithBacklinks returns the content of the requested note (with integrity
+// status) plus the full content of every note that links TO it (depth 1 backlinks).
+func (v *Vault) ReadWithBacklinks(title, heading string) (ReadResult, []LinkedNote, error) {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
 
 	path, err := resolveNote(v.dir, title)
 	if err != nil {
-		return "", nil, err
+		return ReadResult{}, nil, err
 	}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return "", nil, err
+		return ReadResult{}, nil, err
 	}
+
+	status := v.registry.verify(v.dir, path, data)
 
 	primary := string(data)
 	if heading != "" {
 		lines := strings.Split(primary, "\n")
 		bounds, found := findSection(lines, heading)
 		if !found {
-			return "", nil, fmt.Errorf("heading %q not found in %q", heading, title)
+			return ReadResult{}, nil, fmt.Errorf("heading %q not found in %q", heading, title)
 		}
 		section := lines[bounds.HeadingLine:bounds.ContentEnd]
 		primary = strings.Join(section, "\n")
@@ -430,7 +437,7 @@ func (v *Vault) ReadWithBacklinks(title, heading string) (string, []LinkedNote, 
 
 	blPaths, err := FindBacklinks(v.dir, title)
 	if err != nil {
-		return primary, nil, err
+		return ReadResult{Content: primary, Integrity: status}, nil, err
 	}
 
 	var linked []LinkedNote
@@ -448,7 +455,7 @@ func (v *Vault) ReadWithBacklinks(title, heading string) (string, []LinkedNote, 
 		})
 	}
 
-	return primary, linked, nil
+	return ReadResult{Content: primary, Integrity: status}, linked, nil
 }
 
 // Search finds notes whose title or content matches opts.Query or opts.Regex.
@@ -802,7 +809,12 @@ func (v *Vault) Create(name, path, content string, silent, timestamps bool) erro
 		return err
 	}
 
-	return os.WriteFile(fullPath, []byte(content), 0644)
+	contentBytes := []byte(content)
+	if err := os.WriteFile(fullPath, contentBytes, 0644); err != nil {
+		return err
+	}
+	v.registry.register(v.dir, fullPath, contentBytes)
+	return nil
 }
 
 // Append adds content to the end of an existing note.
@@ -820,11 +832,12 @@ func (v *Vault) Append(title, content string, timestamps bool) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
 	if _, err = fmt.Fprint(f, content); err != nil {
+		f.Close()
 		return err
 	}
+	f.Close()
 
 	if timestampsEnabled(timestamps) {
 		data, err := os.ReadFile(path)
@@ -832,9 +845,20 @@ func (v *Vault) Append(title, content string, timestamps bool) error {
 			return err
 		}
 		updated := ensureTimestamps(string(data), false, time.Now())
-		return os.WriteFile(path, []byte(updated), 0644)
+		updatedBytes := []byte(updated)
+		if err := os.WriteFile(path, updatedBytes, 0644); err != nil {
+			return err
+		}
+		v.registry.register(v.dir, path, updatedBytes)
+		return nil
 	}
 
+	// No timestamps -- read final content for registration.
+	final, err := os.ReadFile(path)
+	if err != nil {
+		return nil // write succeeded, registration is best-effort
+	}
+	v.registry.register(v.dir, path, final)
 	return nil
 }
 
@@ -872,7 +896,12 @@ func (v *Vault) Prepend(title, content string, timestamps bool) error {
 		result = ensureTimestamps(result, false, time.Now())
 	}
 
-	return os.WriteFile(path, []byte(result), 0644)
+	resultBytes := []byte(result)
+	if err := os.WriteFile(path, resultBytes, 0644); err != nil {
+		return err
+	}
+	v.registry.register(v.dir, path, resultBytes)
+	return nil
 }
 
 // Write replaces the body content of an existing note, preserving frontmatter.
@@ -908,7 +937,12 @@ func (v *Vault) Write(title, content string, timestamps bool) error {
 		result = ensureTimestamps(result, false, time.Now())
 	}
 
-	return os.WriteFile(path, []byte(result), 0644)
+	resultBytes := []byte(result)
+	if err := os.WriteFile(path, resultBytes, 0644); err != nil {
+		return err
+	}
+	v.registry.register(v.dir, path, resultBytes)
+	return nil
 }
 
 // Patch performs surgical edits to a note: heading-targeted or line-targeted
@@ -1000,7 +1034,12 @@ func (v *Vault) Patch(title string, opts PatchOptions) error {
 		output = ensureTimestamps(output, false, time.Now())
 	}
 
-	return os.WriteFile(path, []byte(output), 0644)
+	outputBytes := []byte(output)
+	if err := os.WriteFile(path, outputBytes, 0644); err != nil {
+		return err
+	}
+	v.registry.register(v.dir, path, outputBytes)
+	return nil
 }
 
 // Move moves a note from one path to another within the vault.
@@ -1035,6 +1074,12 @@ func (v *Vault) Move(from, to string) (MoveResult, error) {
 		return MoveResult{}, err
 	}
 
+	// Deregister old path, register new path.
+	v.registry.deregister(v.dir, fromPath)
+	if newData, readErr := os.ReadFile(toPath); readErr == nil {
+		v.registry.register(v.dir, toPath, newData)
+	}
+
 	res := MoveResult{
 		OldTitle: oldTitle,
 		NewTitle: newTitle,
@@ -1042,7 +1087,7 @@ func (v *Vault) Move(from, to string) (MoveResult, error) {
 
 	// If the filename changed, update wikilinks across the vault.
 	if oldTitle != newTitle {
-		count, err := updateVaultLinks(v.dir, oldTitle, newTitle)
+		count, err := updateVaultLinks(v.dir, oldTitle, newTitle, v.registry)
 		if err != nil {
 			return res, fmt.Errorf("moved file but failed updating links: %w", err)
 		}
@@ -1050,7 +1095,7 @@ func (v *Vault) Move(from, to string) (MoveResult, error) {
 	}
 
 	// Update markdown-style [text](path.md) links across the vault.
-	mdCount, mdErr := updateVaultMdLinks(v.dir, from, to)
+	mdCount, mdErr := updateVaultMdLinks(v.dir, from, to, v.registry)
 	if mdErr != nil {
 		return res, fmt.Errorf("moved file but failed updating markdown links: %w", mdErr)
 	}
@@ -1093,6 +1138,7 @@ func (v *Vault) Delete(title, notePath string, permanent bool) (string, error) {
 		if err := os.Remove(fullPath); err != nil {
 			return "", err
 		}
+		v.registry.deregister(v.dir, fullPath)
 		return fmt.Sprintf("deleted: %s", relPath), nil
 	}
 
@@ -1104,6 +1150,7 @@ func (v *Vault) Delete(title, notePath string, permanent bool) (string, error) {
 	if err := os.Rename(fullPath, trashPath); err != nil {
 		return "", err
 	}
+	v.registry.deregister(v.dir, fullPath)
 	return fmt.Sprintf("trashed: %s -> .trash/%s", relPath, filepath.Base(fullPath)), nil
 }
 
@@ -1180,7 +1227,12 @@ func (v *Vault) PropertySet(title, name, value string) error {
 	}
 
 	result := strings.Join(lines, "\n")
-	return os.WriteFile(path, []byte(result), 0644)
+	resultBytes := []byte(result)
+	if err := os.WriteFile(path, resultBytes, 0644); err != nil {
+		return err
+	}
+	v.registry.register(v.dir, path, resultBytes)
+	return nil
 }
 
 // PropertyRemove removes a property from a note's frontmatter.
@@ -1205,7 +1257,12 @@ func (v *Vault) PropertyRemove(title, name string) error {
 		return fmt.Errorf("property %q not found in %q", name, title)
 	}
 
-	return os.WriteFile(path, []byte(updated), 0644)
+	updatedBytes := []byte(updated)
+	if err := os.WriteFile(path, updatedBytes, 0644); err != nil {
+		return err
+	}
+	v.registry.register(v.dir, path, updatedBytes)
+	return nil
 }
 
 // Backlinks finds all notes that contain wikilinks to the given title.

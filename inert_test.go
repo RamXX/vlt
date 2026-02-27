@@ -2508,7 +2508,7 @@ func TestE2EMaskingDoesNotCorruptContent(t *testing.T) {
 	}
 
 	// 4. Run the actual Vault methods that use masking
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	// Orphans
 	v.Orphans()
 	// Unresolved

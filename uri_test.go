@@ -11,7 +11,7 @@ import (
 
 func TestURIBasic(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.WriteFile(filepath.Join(vaultDir, "Hello.md"), []byte("# Hello\n"), 0644)
 
 	out, err := v.URI("TestVault", "Hello", "", "")
@@ -27,7 +27,7 @@ func TestURIBasic(t *testing.T) {
 
 func TestURIWithSpaces(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.WriteFile(filepath.Join(vaultDir, "Session Operating Mode.md"), []byte("# Session\n"), 0644)
 
 	out, err := v.URI("My Vault", "Session Operating Mode", "", "")
@@ -43,7 +43,7 @@ func TestURIWithSpaces(t *testing.T) {
 
 func TestURIWithSubfolder(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.MkdirAll(filepath.Join(vaultDir, "methodology"), 0755)
 	os.WriteFile(filepath.Join(vaultDir, "methodology", "Session Operating Mode.md"), []byte("# Session\n"), 0644)
 
@@ -60,7 +60,7 @@ func TestURIWithSubfolder(t *testing.T) {
 
 func TestURIWithHeading(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte("# Note\n## Section A\ncontent\n"), 0644)
 
 	out, err := v.URI("Claude", "Note", "Section A", "")
@@ -76,7 +76,7 @@ func TestURIWithHeading(t *testing.T) {
 
 func TestURIWithBlock(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte("# Note\ncontent ^block-123\n"), 0644)
 
 	out, err := v.URI("Claude", "Note", "", "block-123")
@@ -92,7 +92,7 @@ func TestURIWithBlock(t *testing.T) {
 
 func TestURISpecialCharacters(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.MkdirAll(filepath.Join(vaultDir, "notes & ideas"), 0755)
 	os.WriteFile(filepath.Join(vaultDir, "notes & ideas", "C++ Patterns.md"), []byte("# C++\n"), 0644)
 
@@ -125,7 +125,7 @@ func TestURISpecialCharacters(t *testing.T) {
 
 func TestURIRequiresFile(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	_, err := v.URI("Claude", "", "", "")
 	if err == nil {
@@ -138,7 +138,7 @@ func TestURIRequiresFile(t *testing.T) {
 
 func TestURIHeadingWithSpecialChars(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.WriteFile(filepath.Join(vaultDir, "Doc.md"), []byte("# Doc\n## Q&A Section\ncontent\n"), 0644)
 
 	out, err := v.URI("Claude", "Doc", "Q&A Section", "")
@@ -154,7 +154,7 @@ func TestURIHeadingWithSpecialChars(t *testing.T) {
 
 func TestURIBlockWithSpecialChars(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.WriteFile(filepath.Join(vaultDir, "Doc.md"), []byte("# Doc\ncontent ^my-block\n"), 0644)
 
 	out, err := v.URI("Claude", "Doc", "", "my-block")
@@ -173,7 +173,7 @@ func TestURIBlockWithSpecialChars(t *testing.T) {
 func TestURIIntegration(t *testing.T) {
 	// Full integration: create a realistic vault, create a note, generate URI
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.MkdirAll(filepath.Join(vaultDir, "methodology"), 0755)
 
 	noteContent := "---\ntype: concept\nstatus: active\n---\n\n# Test Concept\n\nSome content here.\n"
@@ -198,7 +198,7 @@ func TestURIIntegration(t *testing.T) {
 func TestURISubfolderIntegration(t *testing.T) {
 	// Integration: deeply nested note
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.MkdirAll(filepath.Join(vaultDir, "projects", "active"), 0755)
 
 	noteContent := "---\ntype: project\n---\n\n# Deep Note\n"
@@ -217,7 +217,7 @@ func TestURISubfolderIntegration(t *testing.T) {
 
 func TestURINoteNotFound(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Write some note so the vault isn't empty
 	os.WriteFile(filepath.Join(vaultDir, "Existing.md"), []byte("# Existing\n"), 0644)
@@ -234,7 +234,7 @@ func TestURINoteNotFound(t *testing.T) {
 func TestURIHeadingAndBlockTogether(t *testing.T) {
 	// When both heading and block are provided, both should appear in the URI
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte("# Note\n## Section\ncontent ^blk\n"), 0644)
 
 	out, err := v.URI("Claude", "Note", "Section", "blk")
@@ -254,7 +254,7 @@ func TestURIHeadingAndBlockTogether(t *testing.T) {
 func TestURIRootLevelNote(t *testing.T) {
 	// Integration: note at vault root (no subfolder)
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.WriteFile(filepath.Join(vaultDir, "README.md"), []byte("# README\n"), 0644)
 
 	out, err := v.URI("Claude", "README", "", "")

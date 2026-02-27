@@ -12,8 +12,9 @@ import (
 // Vault represents an opened Obsidian vault. It carries the vault root
 // directory and a mutex for goroutine-safe operations.
 type Vault struct {
-	dir string
-	mu  sync.RWMutex
+	dir      string
+	registry *Registry
+	mu       sync.RWMutex
 }
 
 // Open opens a vault at the given directory path, validating that it exists.
@@ -22,7 +23,9 @@ func Open(dir string) (*Vault, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Vault{dir: dir}, nil
+	v := &Vault{dir: dir}
+	v.registry = openRegistry(dir)
+	return v, nil
 }
 
 // OpenByName resolves a vault by name (or path) via the Obsidian config
@@ -32,7 +35,9 @@ func OpenByName(name string) (*Vault, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Vault{dir: dir}, nil
+	v := &Vault{dir: dir}
+	v.registry = openRegistry(dir)
+	return v, nil
 }
 
 // Dir returns the vault root directory path.

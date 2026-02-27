@@ -151,5 +151,10 @@ func (v *Vault) TemplatesApply(templateName, noteName, notePath string) error {
 		return err
 	}
 
-	return os.WriteFile(fullPath, []byte(content), 0644)
+	contentBytes := []byte(content)
+	if err := os.WriteFile(fullPath, contentBytes, 0644); err != nil {
+		return err
+	}
+	v.registry.register(v.dir, fullPath, contentBytes)
+	return nil
 }

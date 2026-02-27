@@ -145,7 +145,7 @@ func TestEnsureTimestampsFormat(t *testing.T) {
 func TestCreateWithTimestamps(t *testing.T) {
 	vaultDir := t.TempDir()
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	if err := v.Create("Stamped Note", "Stamped Note.md", "---\ntype: note\n---\n\n# Stamped\n", true, true); err != nil {
 		t.Fatalf("create with timestamps: %v", err)
 	}
@@ -182,7 +182,7 @@ func TestAppendWithTimestamps(t *testing.T) {
 	notePath := filepath.Join(vaultDir, "AppendNote.md")
 	os.WriteFile(notePath, []byte(original), 0644)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	if err := v.Append("AppendNote", "\nAppended content.\n", true); err != nil {
 		t.Fatalf("append with timestamps: %v", err)
 	}
@@ -224,7 +224,7 @@ func TestPrependWithTimestamps(t *testing.T) {
 	notePath := filepath.Join(vaultDir, "PrependNote.md")
 	os.WriteFile(notePath, []byte(original), 0644)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	if err := v.Prepend("PrependNote", "Prepended line\n", true); err != nil {
 		t.Fatalf("prepend with timestamps: %v", err)
 	}
@@ -262,7 +262,7 @@ func TestWriteWithTimestamps(t *testing.T) {
 	notePath := filepath.Join(vaultDir, "WriteNote.md")
 	os.WriteFile(notePath, []byte(original), 0644)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	if err := v.Write("WriteNote", "# New Body\n\nReplaced.\n", true); err != nil {
 		t.Fatalf("write with timestamps: %v", err)
 	}
@@ -308,7 +308,7 @@ func TestPatchWithTimestamps(t *testing.T) {
 	notePath := filepath.Join(vaultDir, "PatchNote.md")
 	os.WriteFile(notePath, []byte(original), 0644)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	if err := v.Patch("PatchNote", PatchOptions{Heading: "## Section A", Content: "new content\n", Timestamps: true}); err != nil {
 		t.Fatalf("patch with timestamps: %v", err)
 	}
@@ -353,7 +353,7 @@ func TestTimestampsEnvVar(t *testing.T) {
 	t.Setenv("VLT_TIMESTAMPS", "1")
 
 	// timestamps=false (flag not set), but env var is set
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	if err := v.Create("EnvNote", "EnvNote.md", "---\ntype: test\n---\n\n# Env Test\n", true, false); err != nil {
 		t.Fatalf("create with env var: %v", err)
 	}
@@ -385,7 +385,7 @@ func TestNoTimestampsWithoutFlag(t *testing.T) {
 	t.Setenv("VLT_TIMESTAMPS", "")
 
 	// Create
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	if err := v.Create("PlainNote", "PlainNote.md", "---\ntype: note\n---\n\n# Plain\n", true, false); err != nil {
 		t.Fatalf("create without timestamps: %v", err)
 	}
@@ -419,7 +419,7 @@ func TestNoTimestampsWithoutFlag(t *testing.T) {
 func TestTimestampsPreserveExistingFrontmatter(t *testing.T) {
 	vaultDir := t.TempDir()
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	if err := v.Create("RichNote", "RichNote.md", "---\ntype: decision\nstatus: active\naliases: [Dec1, Alt]\ntags: [project, review]\n---\n\n# Rich Note\n", true, true); err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -466,7 +466,7 @@ func TestPatchByLineWithTimestamps(t *testing.T) {
 	os.WriteFile(notePath, []byte(original), 0644)
 
 	// Line 7 is "Line A" (1=---, 2=type:, 3=created_at:, 4=updated_at:, 5=---, 6=empty, 7=Line A)
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	if err := v.Patch("LineNote", PatchOptions{LineSpec: "7", Content: "PATCHED", Timestamps: true}); err != nil {
 		t.Fatalf("patch by line with timestamps: %v", err)
 	}

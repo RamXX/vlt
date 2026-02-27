@@ -32,7 +32,7 @@ func TestE2EWriteThenReadHeading(t *testing.T) {
 		t.Fatalf("setup: %v", err)
 	}
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Step 2: Write new body content preserving frontmatter
 	newBody := "# Design Document v2\n\nRevised overview.\n\n## Architecture\n\nMonolithic with clean architecture layers.\n\n## Testing Strategy\n\nProperty-based testing throughout.\n"
@@ -41,10 +41,11 @@ func TestE2EWriteThenReadHeading(t *testing.T) {
 	}
 
 	// Step 3: Read the Architecture section via heading
-	readOut, err := v.Read("Design Doc", "## Architecture")
+	readOutResult, err := v.Read("Design Doc", "## Architecture")
 	if err != nil {
 		t.Fatalf("read heading: %v", err)
 	}
+	readOut := readOutResult.Content
 
 	// Verify: section content is from the NEW body
 	if !strings.Contains(readOut, "## Architecture") {
@@ -97,7 +98,7 @@ func TestE2EPatchThenReadHeading(t *testing.T) {
 		t.Fatalf("setup: %v", err)
 	}
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Step 2: Patch the Decision section by heading
 	if err := v.Patch("ADR-001", PatchOptions{
@@ -108,10 +109,11 @@ func TestE2EPatchThenReadHeading(t *testing.T) {
 	}
 
 	// Step 3: Read the Decision section via heading
-	readOut, err := v.Read("ADR-001", "## Decision")
+	readOutResult, err := v.Read("ADR-001", "## Decision")
 	if err != nil {
 		t.Fatalf("read heading: %v", err)
 	}
+	readOut := readOutResult.Content
 
 	// Verify patched content is returned
 	if !strings.Contains(readOut, "SQLite for embedded simplicity") {
@@ -156,7 +158,7 @@ func TestE2EPatchDeleteThenSearch(t *testing.T) {
 		t.Fatalf("setup: %v", err)
 	}
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Step 2: Verify the content exists before deletion
 	preResults, err := v.Search(SearchOptions{Query: "thundering herd"})
@@ -225,7 +227,7 @@ func TestE2ESearchContextMultipleNotes(t *testing.T) {
 	os.WriteFile(filepath.Join(vaultDir, "decisions", "Database Choice.md"), []byte(note2), 0644)
 	os.WriteFile(filepath.Join(vaultDir, "Internal Service.md"), []byte(note3), 0644)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Search for "gateway" with context=2
 	matches, err := v.SearchWithContext(SearchOptions{Query: "gateway", ContextN: 2})
@@ -294,7 +296,7 @@ func TestE2ESearchRegexAcrossVault(t *testing.T) {
 	os.WriteFile(filepath.Join(vaultDir, "projects", "Beta.md"), []byte(note2), 0644)
 	os.WriteFile(filepath.Join(vaultDir, "Meeting Notes.md"), []byte(note3), 0644)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Search for date pattern with regex
 	results, err := v.Search(SearchOptions{Regex: `\d{4}-\d{2}-\d{2}`})
@@ -380,7 +382,7 @@ func TestE2ESearchRegexAcrossVault(t *testing.T) {
 func TestE2ETimestampsFullWorkflow(t *testing.T) {
 	vaultDir := t.TempDir()
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Step 1: Create note with timestamps
 	if err := v.Create("Evolving Note", "Evolving Note.md",
@@ -514,7 +516,7 @@ func TestE2EWritePreservesLinks(t *testing.T) {
 		t.Fatal("Caching should have backlinks before write")
 	}
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Write new body with link to Messaging instead
 	newBody := "# Data Layer v2\n\nWe now use [[Messaging]] for async communication.\nNo direct database or cache access.\n"
@@ -582,7 +584,7 @@ func TestE2EPatchByLineRange(t *testing.T) {
 		t.Fatalf("setup: %v", err)
 	}
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Patch lines 3-7 with new content
 	if err := v.Patch("LineTest", PatchOptions{
@@ -648,7 +650,7 @@ func TestE2EContentManipulationDoesNotCorruptVault(t *testing.T) {
 		}
 	}
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Operation 1: Write to Alpha (replace body)
 	if err := v.Write("Alpha", "# Alpha Revised\n\n## New Section\n\nCompletely new content.\n", false); err != nil {
@@ -733,11 +735,11 @@ func TestE2EContentManipulationDoesNotCorruptVault(t *testing.T) {
 
 		// Must be readable via v.Read without error
 		noteName := strings.TrimSuffix(filepath.Base(relPath), ".md")
-		readContent, err := v.Read(noteName, "")
+		readResult, err := v.Read(noteName, "")
 		if err != nil {
 			t.Errorf("%s: v.Read failed: %v", relPath, err)
 		}
-		if readContent == "" {
+		if readResult.Content == "" {
 			t.Errorf("%s: v.Read returned empty output", relPath)
 		}
 

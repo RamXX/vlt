@@ -160,7 +160,7 @@ func TestTemplatesListIntegration(t *testing.T) {
 	os.WriteFile(filepath.Join(tmplDir, "Daily.md"), []byte("# {{date}}"), 0644)
 	os.WriteFile(filepath.Join(tmplDir, "not-a-template.txt"), []byte("skip me"), 0644)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	templates, err := v.Templates()
 	if err != nil {
 		t.Fatalf("Templates: %v", err)
@@ -218,7 +218,7 @@ func TestTemplatesApplyIntegration(t *testing.T) {
 		0644,
 	)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	if err := v.TemplatesApply("Meeting Notes", "Q1 Planning", "meetings/Q1 Planning.md"); err != nil {
 		t.Fatalf("TemplatesApply: %v", err)
 	}
@@ -273,7 +273,7 @@ func TestTemplatesApplyExistingNote(t *testing.T) {
 	os.MkdirAll(filepath.Join(vaultDir, "notes"), 0755)
 	os.WriteFile(filepath.Join(vaultDir, "notes", "Existing.md"), []byte("# Existing"), 0644)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	err := v.TemplatesApply("Simple", "Existing", "notes/Existing.md")
 	if err == nil {
 		t.Fatal("expected error when applying to existing note")
@@ -294,7 +294,7 @@ func TestTemplatesApplyNotFound(t *testing.T) {
 	)
 	os.MkdirAll(filepath.Join(vaultDir, "templates"), 0755)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	err := v.TemplatesApply("Nonexistent", "Test", "test.md")
 	if err == nil {
 		t.Fatal("expected error for nonexistent template")
@@ -318,7 +318,7 @@ func TestTemplatesApplyCreatesDirectories(t *testing.T) {
 	os.MkdirAll(tmplDir, 0755)
 	os.WriteFile(filepath.Join(tmplDir, "Simple.md"), []byte("# {{title}}"), 0644)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	if err := v.TemplatesApply("Simple", "Deep Note", "deeply/nested/dir/Deep Note.md"); err != nil {
 		t.Fatalf("TemplatesApply failed: %v", err)
 	}
@@ -337,7 +337,7 @@ func TestTemplatesListNoFolderError(t *testing.T) {
 	vaultDir := t.TempDir()
 
 	// No config, no templates/ folder
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	_, err := v.Templates()
 	if err == nil {
 		t.Fatal("expected error when no template folder configured or found")
@@ -351,7 +351,7 @@ func TestTemplatesApplyNoFolderError(t *testing.T) {
 	vaultDir := t.TempDir()
 
 	// No config, no templates/ folder
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	err := v.TemplatesApply("Something", "Test", "test.md")
 	if err == nil {
 		t.Fatal("expected error when no template folder configured or found")

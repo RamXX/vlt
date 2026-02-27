@@ -82,7 +82,7 @@ func TestTasks_SingleFile(t *testing.T) {
 		0644,
 	)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	tasks, err := v.Tasks(TaskOptions{File: "Tasks"})
 	if err != nil {
 		t.Fatalf("Tasks single file: %v", err)
@@ -114,7 +114,7 @@ func TestTasks_VaultWide(t *testing.T) {
 		0644,
 	)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	tasks, err := v.Tasks(TaskOptions{})
 	if err != nil {
 		t.Fatalf("Tasks vault-wide: %v", err)
@@ -135,7 +135,7 @@ func TestTasks_FilterDone(t *testing.T) {
 		0644,
 	)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	tasks, err := v.Tasks(TaskOptions{File: "Tasks", Done: true})
 	if err != nil {
 		t.Fatalf("Tasks filter done: %v", err)
@@ -157,7 +157,7 @@ func TestTasks_FilterPending(t *testing.T) {
 		0644,
 	)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	tasks, err := v.Tasks(TaskOptions{File: "Tasks", Pending: true})
 	if err != nil {
 		t.Fatalf("Tasks filter pending: %v", err)
@@ -186,7 +186,7 @@ func TestTasks_PathFilter(t *testing.T) {
 		0644,
 	)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	tasks, err := v.Tasks(TaskOptions{Path: "projects"})
 	if err != nil {
 		t.Fatalf("Tasks path filter: %v", err)

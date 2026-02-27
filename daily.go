@@ -190,9 +190,11 @@ func (v *Vault) Daily(dateStr string) (DailyResult, error) {
 		return DailyResult{}, err
 	}
 
-	if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+	contentBytes := []byte(content)
+	if err := os.WriteFile(fullPath, contentBytes, 0644); err != nil {
 		return DailyResult{}, err
 	}
+	v.registry.register(v.dir, fullPath, contentBytes)
 
 	return DailyResult{
 		RelPath: relPath,

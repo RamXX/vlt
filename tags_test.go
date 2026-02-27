@@ -138,7 +138,7 @@ func TestTags(t *testing.T) {
 		0644,
 	)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	tags, counts, err := v.Tags("")
 	if err != nil {
 		t.Fatalf("Tags: %v", err)
@@ -182,7 +182,7 @@ func TestTag(t *testing.T) {
 		0644,
 	)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Exact match
 	files, err := v.Tag("project/backend")
@@ -212,7 +212,7 @@ func TestTag_StripHash(t *testing.T) {
 		0644,
 	)
 
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// User passes #meeting with hash prefix -- should still work
 	files, err := v.Tag("#meeting")

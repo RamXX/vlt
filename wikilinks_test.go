@@ -206,7 +206,7 @@ func TestUpdateVaultLinks(t *testing.T) {
 		0644,
 	)
 
-	count, err := updateVaultLinks(vaultDir, "Old Name", "New Name")
+	count, err := updateVaultLinks(vaultDir, "Old Name", "New Name", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -456,7 +456,7 @@ func TestUpdateVaultMdLinks_Rename(t *testing.T) {
 		0644,
 	)
 
-	count, err := updateVaultMdLinks(vaultDir, "notes/Old.md", "archive/New.md")
+	count, err := updateVaultMdLinks(vaultDir, "notes/Old.md", "archive/New.md", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -482,7 +482,7 @@ func TestUpdateVaultMdLinks_Move(t *testing.T) {
 		0644,
 	)
 
-	count, err := updateVaultMdLinks(vaultDir, "_inbox/Note.md", "decisions/Note.md")
+	count, err := updateVaultMdLinks(vaultDir, "_inbox/Note.md", "decisions/Note.md", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -507,7 +507,7 @@ func TestUpdateVaultMdLinks_WithFragment(t *testing.T) {
 		0644,
 	)
 
-	count, err := updateVaultMdLinks(vaultDir, "_inbox/Note.md", "docs/Note.md")
+	count, err := updateVaultMdLinks(vaultDir, "_inbox/Note.md", "docs/Note.md", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -532,7 +532,7 @@ func TestUpdateVaultMdLinks_NoMatch(t *testing.T) {
 		0644,
 	)
 
-	count, err := updateVaultMdLinks(vaultDir, "_inbox/Note.md", "docs/Note.md")
+	count, err := updateVaultMdLinks(vaultDir, "_inbox/Note.md", "docs/Note.md", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

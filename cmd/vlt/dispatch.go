@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
+	"time"
 
 	vlt "github.com/RamXX/vlt"
 )
@@ -34,11 +36,12 @@ func dispatchRead(v *vlt.Vault, params map[string]string, flags map[string]bool)
 	heading := params["heading"]
 
 	if flags["follow"] {
-		primary, linked, err := v.ReadFollow(title, heading)
+		result, linked, err := v.ReadFollow(title, heading)
 		if err != nil {
 			return err
 		}
-		fmt.Print(primary)
+		warnIntegrity(title, result.Integrity)
+		fmt.Print(result.Content)
 		for _, ln := range linked {
 			fmt.Printf("\n--- [[%s]] (%s) ---\n", ln.Title, ln.Path)
 			fmt.Print(ln.Content)
@@ -47,11 +50,12 @@ func dispatchRead(v *vlt.Vault, params map[string]string, flags map[string]bool)
 	}
 
 	if flags["backlinks"] {
-		primary, linked, err := v.ReadWithBacklinks(title, heading)
+		result, linked, err := v.ReadWithBacklinks(title, heading)
 		if err != nil {
 			return err
 		}
-		fmt.Print(primary)
+		warnIntegrity(title, result.Integrity)
+		fmt.Print(result.Content)
 		for _, ln := range linked {
 			fmt.Printf("\n--- [[%s]] (%s) ---\n", ln.Title, ln.Path)
 			fmt.Print(ln.Content)
@@ -59,12 +63,21 @@ func dispatchRead(v *vlt.Vault, params map[string]string, flags map[string]bool)
 		return nil
 	}
 
-	content, err := v.Read(title, heading)
+	result, err := v.Read(title, heading)
 	if err != nil {
 		return err
 	}
-	fmt.Print(content)
+	warnIntegrity(title, result.Integrity)
+	fmt.Print(result.Content)
 	return nil
+}
+
+// warnIntegrity prints a warning to stderr if integrity is compromised.
+// Stays silent for OK, Untracked, and NoRegistry to avoid noise.
+func warnIntegrity(title string, status vlt.IntegrityStatus) {
+	if status == vlt.IntegrityMismatch {
+		fmt.Fprintf(os.Stderr, "vlt: INTEGRITY MISMATCH for %q -- file modified outside vlt\n", title)
+	}
 }
 
 func dispatchSearch(v *vlt.Vault, params map[string]string, format string) error {
@@ -462,6 +475,103 @@ func dispatchBookmarksRemove(v *vlt.Vault, params map[string]string) error {
 	}
 	fmt.Printf("unbookmarked: %s\n", title)
 	return nil
+}
+
+func dispatchIntegrityBaseline(v *vlt.Vault) error {
+	if err := v.IntegrityBaseline(); err != nil {
+		return err
+	}
+	fmt.Println("integrity baseline registered for all vault files")
+	return nil
+}
+
+func dispatchIntegrityAcknowledge(v *vlt.Vault, params map[string]string) error {
+	title := params["file"]
+	sinceStr := params["since"]
+
+	if title == "" && sinceStr == "" {
+		return fmt.Errorf("integrity:acknowledge requires file=\"<title>\" or since=\"<duration>\" (e.g., since=\"1h\")")
+	}
+
+	if sinceStr != "" {
+		d, err := parseDuration(sinceStr)
+		if err != nil {
+			return fmt.Errorf("invalid since duration: %v", err)
+		}
+		count, err := v.IntegrityAcknowledgeSince(d)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("acknowledged %d file(s) modified in the last %s\n", count, sinceStr)
+		return nil
+	}
+
+	if err := v.IntegrityAcknowledge(title); err != nil {
+		return err
+	}
+	fmt.Printf("acknowledged: %s\n", title)
+	return nil
+}
+
+func dispatchIntegrityStatus(v *vlt.Vault, format string) error {
+	statuses := v.IntegrityStatusAll()
+	if len(statuses) == 0 {
+		fmt.Println("no registry found -- run integrity:baseline first")
+		return nil
+	}
+
+	// Collect mismatches and untracked.
+	type entry struct {
+		path   string
+		status string
+	}
+	var issues []entry
+	okCount := 0
+	for path, s := range statuses {
+		switch s {
+		case vlt.IntegrityOK:
+			okCount++
+		default:
+			issues = append(issues, entry{path: path, status: s.String()})
+		}
+	}
+
+	if format == "json" {
+		formatIntegrityStatusJSON(statuses)
+		return nil
+	}
+
+	if len(issues) == 0 {
+		fmt.Printf("all %d registered files OK\n", okCount)
+		return nil
+	}
+
+	sort.Slice(issues, func(i, j int) bool { return issues[i].path < issues[j].path })
+	for _, e := range issues {
+		fmt.Printf("%-12s %s\n", e.status, e.path)
+	}
+	fmt.Printf("\n%d ok, %d issue(s)\n", okCount, len(issues))
+	return nil
+}
+
+func formatIntegrityStatusJSON(statuses map[string]vlt.IntegrityStatus) {
+	type jsonEntry struct {
+		Path   string `json:"path"`
+		Status string `json:"status"`
+	}
+	var entries []jsonEntry
+	for path, s := range statuses {
+		entries = append(entries, jsonEntry{Path: path, Status: s.String()})
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
+	data, _ := json.MarshalIndent(entries, "", "  ")
+	fmt.Println(string(data))
+}
+
+// parseDuration parses a human-friendly duration string.
+// Supports Go's time.ParseDuration format (e.g., "1h", "30m", "2h30m").
+func parseDuration(s string) (time.Duration, error) {
+	return time.ParseDuration(s)
 }
 
 func dispatchURI(v *vlt.Vault, vaultName string, params map[string]string) error {

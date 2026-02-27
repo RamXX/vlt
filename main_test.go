@@ -98,7 +98,7 @@ func TestResolveNote_Alias(t *testing.T) {
 
 func TestCmdCreateAndRead(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Create a note
 	contentStr := "---\ntype: test\n---\n\n# Test Note\n\nHello world.\n"
@@ -128,7 +128,7 @@ func TestCmdCreateAndRead(t *testing.T) {
 
 func TestCmdAppend(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Create a note to append to
 	notePath := filepath.Join(vaultDir, "Test Append.md")
@@ -147,7 +147,7 @@ func TestCmdAppend(t *testing.T) {
 
 func TestCmdMove(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Create source
 	os.MkdirAll(filepath.Join(vaultDir, "_inbox"), 0755)
@@ -176,7 +176,7 @@ func TestCmdMove(t *testing.T) {
 
 func TestCmdMove_RenameUpdatesLinks(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.MkdirAll(filepath.Join(vaultDir, "_inbox"), 0755)
 	os.MkdirAll(filepath.Join(vaultDir, "methodology"), 0755)
@@ -216,7 +216,7 @@ func TestCmdMove_RenameUpdatesLinks(t *testing.T) {
 
 func TestCmdMove_FolderOnlyNoLinkUpdate(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.MkdirAll(filepath.Join(vaultDir, "_inbox"), 0755)
 
@@ -247,7 +247,7 @@ func TestCmdMove_FolderOnlyNoLinkUpdate(t *testing.T) {
 
 func TestCmdMove_UpdatesMdLinks(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.MkdirAll(filepath.Join(vaultDir, "_inbox"), 0755)
 
@@ -285,7 +285,7 @@ func TestCmdMove_UpdatesMdLinks(t *testing.T) {
 
 func TestCmdBacklinks(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.MkdirAll(filepath.Join(vaultDir, "methodology"), 0755)
 
@@ -311,7 +311,7 @@ func TestCmdBacklinks(t *testing.T) {
 
 func TestCmdLinks(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.MkdirAll(filepath.Join(vaultDir, "methodology"), 0755)
 
@@ -340,7 +340,7 @@ func TestCmdLinks(t *testing.T) {
 
 func TestCmdPropertySet(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "---\ntype: decision\nstatus: active\ncreated: 2024-01-15\n---\n\n# My Decision\n"
 	notePath := filepath.Join(vaultDir, "My Decision.md")
@@ -372,7 +372,7 @@ func TestCmdPropertySet(t *testing.T) {
 
 func TestCmdSearch(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.MkdirAll(filepath.Join(vaultDir, "decisions"), 0755)
 	os.MkdirAll(filepath.Join(vaultDir, ".obsidian"), 0755)
@@ -450,7 +450,7 @@ func TestParseSearchQuery(t *testing.T) {
 
 func TestCmdSearch_PropertyFilter(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.MkdirAll(filepath.Join(vaultDir, "decisions"), 0755)
 
@@ -475,7 +475,7 @@ func TestCmdSearch_PropertyFilter(t *testing.T) {
 
 func TestCmdSearch_PropertyFilterWithText(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "Match.md"),
 		[]byte("---\nstatus: active\n---\n\n# Match\narchitecture discussion."), 0644)
@@ -494,7 +494,7 @@ func TestCmdSearch_PropertyFilterWithText(t *testing.T) {
 
 func TestCmdSearch_MultipleFilters(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "Both.md"),
 		[]byte("---\ntype: decision\nstatus: active\n---\n\n# Both\nContent."), 0644)
@@ -513,7 +513,7 @@ func TestCmdSearch_MultipleFilters(t *testing.T) {
 
 func TestCmdPrepend(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// With frontmatter: should insert after ---
 	os.WriteFile(
@@ -554,7 +554,7 @@ func TestCmdPrepend(t *testing.T) {
 
 func TestCmdDelete_Trash(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	notePath := filepath.Join(vaultDir, "ToTrash.md")
 	os.WriteFile(notePath, []byte("# Delete me\n"), 0644)
@@ -577,7 +577,7 @@ func TestCmdDelete_Trash(t *testing.T) {
 
 func TestCmdDelete_Permanent(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	notePath := filepath.Join(vaultDir, "ToDelete.md")
 	os.WriteFile(notePath, []byte("# Delete me\n"), 0644)
@@ -599,7 +599,7 @@ func TestCmdDelete_Permanent(t *testing.T) {
 
 func TestCmdProperties(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(
 		filepath.Join(vaultDir, "Props.md"),
@@ -618,7 +618,7 @@ func TestCmdProperties(t *testing.T) {
 
 func TestCmdPropertyRemove(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	notePath := filepath.Join(vaultDir, "Note.md")
 	os.WriteFile(notePath, []byte("---\ntype: decision\nstatus: active\ncreated: 2024-01-15\n---\n\n# Note\n"), 0644)
@@ -640,7 +640,7 @@ func TestCmdPropertyRemove(t *testing.T) {
 
 func TestCmdOrphans(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// A references B; C is orphaned
 	os.WriteFile(
@@ -671,7 +671,7 @@ func TestCmdOrphans(t *testing.T) {
 
 func TestCmdOrphans_AliasAware(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// A references "Alt Name" which is an alias of B
 	os.WriteFile(
@@ -700,7 +700,7 @@ func TestCmdOrphans_AliasAware(t *testing.T) {
 
 func TestCmdUnresolved(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(
 		filepath.Join(vaultDir, "Existing.md"),
@@ -724,7 +724,7 @@ func TestCmdUnresolved(t *testing.T) {
 
 func TestCmdFiles(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.MkdirAll(filepath.Join(vaultDir, "sub"), 0755)
 	os.MkdirAll(filepath.Join(vaultDir, ".obsidian"), 0755)
@@ -758,7 +758,7 @@ func TestCmdFiles(t *testing.T) {
 // Unit test 1: write replaces body while preserving frontmatter
 func TestCmdWriteReplacesBody(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	original := "---\ntype: decision\nstatus: active\n---\n\n# Old Body\n\nOld content here.\n"
 	notePath := filepath.Join(vaultDir, "Note.md")
@@ -791,7 +791,7 @@ func TestCmdWriteReplacesBody(t *testing.T) {
 // Unit test 2: write to note without frontmatter replaces entire content
 func TestCmdWriteNoFrontmatter(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	original := "# Old Title\n\nSome old content.\n"
 	notePath := filepath.Join(vaultDir, "Plain.md")
@@ -815,7 +815,7 @@ func TestCmdWriteNoFrontmatter(t *testing.T) {
 // Unit test 3: write empty content results in frontmatter-only note
 func TestCmdWriteEmptyBody(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	original := "---\ntype: note\n---\n\n# Content\n"
 	notePath := filepath.Join(vaultDir, "EmptyBody.md")
@@ -840,7 +840,7 @@ func TestCmdWriteEmptyBody(t *testing.T) {
 // Unit test 4: write without file= returns error
 func TestCmdWriteRequiresFile(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	err := v.Write("", "some content", false)
 	if err == nil {
@@ -851,7 +851,7 @@ func TestCmdWriteRequiresFile(t *testing.T) {
 // Unit test 5: write to nonexistent note returns error
 func TestCmdWriteNoteNotFound(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	err := v.Write("Nonexistent", "some content", false)
 	if err == nil {
@@ -866,7 +866,7 @@ func TestCmdWriteNoteNotFound(t *testing.T) {
 // Integration test 6: create real note with frontmatter + body, write new body, verify frontmatter intact
 func TestWritePreservesFrontmatter(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.MkdirAll(filepath.Join(vaultDir, "decisions"), 0755)
 
 	original := "---\ntype: decision\nstatus: active\ncreated: 2026-02-19\naliases: [Dec1, First Decision]\n---\n\n# Original Decision\n\nOriginal body with [[wikilinks]] and content.\n"
@@ -917,7 +917,7 @@ func TestWritePreservesFrontmatter(t *testing.T) {
 // Integration test 7: write content piped from stdin (test the stdin fallback path)
 func TestWriteViaContentParam(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	notePath := filepath.Join(vaultDir, "StdinNote.md")
 	os.WriteFile(notePath, []byte("---\ntitle: stdin test\n---\n\nOld body.\n"), 0644)
@@ -940,7 +940,7 @@ func TestWriteViaContentParam(t *testing.T) {
 // Integration test 8: write content then read back with v.Read to verify round-trip
 func TestWriteThenRead(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	notePath := filepath.Join(vaultDir, "RoundTrip.md")
 	os.WriteFile(notePath, []byte("---\ntype: test\n---\n\n# Before\n"), 0644)
@@ -951,18 +951,18 @@ func TestWriteThenRead(t *testing.T) {
 	}
 
 	// Read back with v.Read
-	got, err := v.Read("RoundTrip", "")
+	result, err := v.Read("RoundTrip", "")
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
 
-	if !strings.Contains(got, "type: test") {
+	if !strings.Contains(result.Content, "type: test") {
 		t.Error("frontmatter not preserved on read-back")
 	}
-	if !strings.Contains(got, "# After Write") {
+	if !strings.Contains(result.Content, "# After Write") {
 		t.Error("new body not found on read-back")
 	}
-	if !strings.Contains(got, "This is the new content.") {
+	if !strings.Contains(result.Content, "This is the new content.") {
 		t.Error("new body content not found on read-back")
 	}
 }
@@ -970,7 +970,7 @@ func TestWriteThenRead(t *testing.T) {
 // Integration test 9: write to nonexistent file returns error, file does not appear
 func TestWriteDoesNotCreateFile(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	err := v.Write("Ghost Note", "Should not be created", false)
 	if err == nil {
@@ -988,7 +988,7 @@ func TestWriteDoesNotCreateFile(t *testing.T) {
 // run v.Write with new content, verify with v.Read and v.Properties
 func TestE2EWriteCommand(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.MkdirAll(filepath.Join(vaultDir, "methodology"), 0755)
 
 	// Step 1: Create a note with frontmatter and body
@@ -1068,7 +1068,7 @@ func TestE2EWriteCommand(t *testing.T) {
 // Unit test 1: replace section content under ## heading
 func TestPatchByHeadingReplace(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "# Title\n\n## Section A\ncontent a\nmore a\n\n## Section B\ncontent b\n"
 	notePath := filepath.Join(vaultDir, "Note.md")
@@ -1095,7 +1095,7 @@ func TestPatchByHeadingReplace(t *testing.T) {
 // Unit test 2: other sections remain unchanged after heading patch
 func TestPatchByHeadingPreservesOtherSections(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "## First\nfirst content\n## Second\nsecond content\n## Third\nthird content\n"
 	notePath := filepath.Join(vaultDir, "Multi.md")
@@ -1122,7 +1122,7 @@ func TestPatchByHeadingPreservesOtherSections(t *testing.T) {
 // Unit test 3: heading match is case-insensitive
 func TestPatchByHeadingCaseInsensitive(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "## My Section\noriginal\n"
 	notePath := filepath.Join(vaultDir, "Case.md")
@@ -1146,7 +1146,7 @@ func TestPatchByHeadingCaseInsensitive(t *testing.T) {
 // Unit test 4: subsections included in scope (section extends to next equal-or-higher heading)
 func TestPatchByHeadingScopeToNextEqualLevel(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "## Section A\ncontent a\n### Subsection\nsub content\n## Section B\ncontent b\n"
 	notePath := filepath.Join(vaultDir, "Scope.md")
@@ -1177,7 +1177,7 @@ func TestPatchByHeadingScopeToNextEqualLevel(t *testing.T) {
 // Unit test 5: section extends to end of file when at EOF
 func TestPatchByHeadingAtEOF(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "## Earlier\nearlier content\n## Last Section\nlast content\nmore last\n"
 	notePath := filepath.Join(vaultDir, "EOF.md")
@@ -1201,7 +1201,7 @@ func TestPatchByHeadingAtEOF(t *testing.T) {
 // Unit test 6: delete heading + content
 func TestPatchByHeadingDelete(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "## Keep\nkeep content\n## Remove\nremove content\n## Also Keep\nalso keep\n"
 	notePath := filepath.Join(vaultDir, "Del.md")
@@ -1231,7 +1231,7 @@ func TestPatchByHeadingDelete(t *testing.T) {
 // Unit test 7: single line replacement
 func TestPatchByLineReplace(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "line one\nline two\nline three\nline four\n"
 	notePath := filepath.Join(vaultDir, "Lines.md")
@@ -1263,7 +1263,7 @@ func TestPatchByLineReplace(t *testing.T) {
 // Unit test 8: line range replacement
 func TestPatchByLineRangeReplace(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\n"
 	notePath := filepath.Join(vaultDir, "Range.md")
@@ -1293,7 +1293,7 @@ func TestPatchByLineRangeReplace(t *testing.T) {
 // Unit test 9: single line deletion
 func TestPatchByLineDelete(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "line 1\nline 2\nline 3\nline 4\n"
 	notePath := filepath.Join(vaultDir, "DelLine.md")
@@ -1318,7 +1318,7 @@ func TestPatchByLineDelete(t *testing.T) {
 // Unit test 10: line range deletion
 func TestPatchByLineRangeDelete(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "line 1\nline 2\nline 3\nline 4\nline 5\n"
 	notePath := filepath.Join(vaultDir, "DelRange.md")
@@ -1346,7 +1346,7 @@ func TestPatchByLineRangeDelete(t *testing.T) {
 // Unit test 11: error for line number beyond file length
 func TestPatchLineOutOfRange(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "line 1\nline 2\n"
 	notePath := filepath.Join(vaultDir, "Short.md")
@@ -1364,7 +1364,7 @@ func TestPatchLineOutOfRange(t *testing.T) {
 // Unit test 12: error for nonexistent heading
 func TestPatchHeadingNotFound(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "## Existing\ncontent\n"
 	notePath := filepath.Join(vaultDir, "NoHead.md")
@@ -1382,7 +1382,7 @@ func TestPatchHeadingNotFound(t *testing.T) {
 // Unit test 13: error without file=
 func TestPatchRequiresFile(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	err := v.Patch("", PatchOptions{Heading: "## Heading", Content: "content"})
 	if err == nil {
@@ -1397,7 +1397,7 @@ func TestPatchRequiresFile(t *testing.T) {
 // Integration test 14: create real note with multiple sections, patch one, read back
 func TestPatchByHeadingIntegration(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.MkdirAll(filepath.Join(vaultDir, "methodology"), 0755)
 
 	content := "---\ntype: methodology\nstatus: active\n---\n\n# Main Title\n\nIntro paragraph.\n\n## Architecture\n\nOriginal architecture description.\nMore details.\n\n## Implementation\n\nImpl details.\n"
@@ -1440,7 +1440,7 @@ func TestPatchByHeadingIntegration(t *testing.T) {
 // Integration test 15: create real note, patch specific line, verify with file read
 func TestPatchByLineIntegration(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "---\nstatus: draft\n---\n\n# Title\n\nLine A\nLine B\nLine C\n"
 	notePath := filepath.Join(vaultDir, "LineNote.md")
@@ -1472,7 +1472,7 @@ func TestPatchByLineIntegration(t *testing.T) {
 // Integration test 16: delete a section, verify remaining content intact
 func TestPatchDeleteSectionIntegration(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "---\ntype: note\n---\n\n## Keep This\n\nKeep content.\n\n## Delete This\n\nDelete content.\n\n## Also Keep\n\nAlso keep content.\n"
 	notePath := filepath.Join(vaultDir, "Sections.md")
@@ -1509,7 +1509,7 @@ func TestPatchDeleteSectionIntegration(t *testing.T) {
 // Integration test 17: patch does not corrupt frontmatter
 func TestPatchPreservesFrontmatter(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "---\ntype: decision\nstatus: active\ncreated: 2026-02-19\naliases: [Dec1, First]\n---\n\n## Summary\n\nSummary content.\n\n## Details\n\nDetail content.\n"
 	notePath := filepath.Join(vaultDir, "FMTest.md")
@@ -1545,7 +1545,7 @@ func TestPatchPreservesFrontmatter(t *testing.T) {
 // Integration test 18: patch a section that contained wikilinks, verify backlinks updated
 func TestPatchThenBacklinks(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Note with wikilinks in a section
 	content := "## Links\n\nSee [[Target]] for details.\n\n## Other\n\nOther stuff.\n"
@@ -1640,15 +1640,16 @@ func TestFindSectionNotFound(t *testing.T) {
 // Unit test 5: read with heading= returns heading + section content
 func TestReadWithHeadingBasic(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "## Section A\ncontent a\nmore a\n## Section B\ncontent b\n"
 	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte(content), 0644)
 
-	got, err := v.Read("Note", "## Section A")
+	gotResult, err := v.Read("Note", "## Section A")
 	if err != nil {
 		t.Fatalf("read with heading: %v", err)
 	}
+	got := gotResult.Content
 
 	want := "## Section A\ncontent a\nmore a\n"
 	if got != want {
@@ -1659,15 +1660,16 @@ func TestReadWithHeadingBasic(t *testing.T) {
 // Unit test 6: subsections are included in the extracted section
 func TestReadWithHeadingIncludesSubheadings(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "## Section A\ncontent a\n### Sub\nsub content\n## Section B\ncontent b\n"
 	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte(content), 0644)
 
-	got, err := v.Read("Note", "## Section A")
+	gotResult, err := v.Read("Note", "## Section A")
 	if err != nil {
 		t.Fatalf("read with heading: %v", err)
 	}
+	got := gotResult.Content
 
 	// Must include subsection
 	if !strings.Contains(got, "### Sub") {
@@ -1685,15 +1687,16 @@ func TestReadWithHeadingIncludesSubheadings(t *testing.T) {
 // Unit test 7: read without heading= returns full note (backward compat)
 func TestReadWithoutHeading(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "---\ntype: note\n---\n\n# Title\n\nBody content.\n"
 	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte(content), 0644)
 
-	got, err := v.Read("Note", "")
+	gotResult, err := v.Read("Note", "")
 	if err != nil {
 		t.Fatalf("read without heading: %v", err)
 	}
+	got := gotResult.Content
 
 	if got != content {
 		t.Errorf("full note not returned.\ngot:  %q\nwant: %q", got, content)
@@ -1707,17 +1710,18 @@ func TestReadWithoutHeading(t *testing.T) {
 // Integration test 8: create note with multiple sections, read specific heading
 func TestReadHeadingIntegration(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.MkdirAll(filepath.Join(vaultDir, "methodology"), 0755)
 
 	content := "# Design Doc\n\nIntro paragraph.\n\n## Architecture\n\nArch description.\nMore details.\n\n## Implementation\n\nImpl details.\n\n## Testing\n\nTest plan.\n"
 	notePath := filepath.Join(vaultDir, "methodology", "Design Doc.md")
 	os.WriteFile(notePath, []byte(content), 0644)
 
-	got, err := v.Read("Design Doc", "## Implementation")
+	gotResult, err := v.Read("Design Doc", "## Implementation")
 	if err != nil {
 		t.Fatalf("integration read heading: %v", err)
 	}
+	got := gotResult.Content
 
 	// Must contain the heading and its content
 	if !strings.Contains(got, "## Implementation") {
@@ -1741,15 +1745,16 @@ func TestReadHeadingIntegration(t *testing.T) {
 // Integration test 9: note with frontmatter, heading section does not include frontmatter
 func TestReadHeadingWithFrontmatter(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "---\ntype: decision\nstatus: active\n---\n\n# Title\n\nIntro.\n\n## Details\n\nDetail content.\n\n## Conclusion\n\nConclusion content.\n"
 	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte(content), 0644)
 
-	got, err := v.Read("Note", "## Details")
+	gotResult, err := v.Read("Note", "## Details")
 	if err != nil {
 		t.Fatalf("read heading with frontmatter: %v", err)
 	}
+	got := gotResult.Content
 
 	// Must contain section content
 	if !strings.Contains(got, "## Details") {
@@ -1773,15 +1778,16 @@ func TestReadHeadingWithFrontmatter(t *testing.T) {
 // Integration test 10: read the last section (extends to EOF)
 func TestReadHeadingLastSection(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "## First\n\nFirst content.\n\n## Second\n\nSecond content.\n\n## Last\n\nLast content.\nMore last.\n"
 	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte(content), 0644)
 
-	got, err := v.Read("Note", "## Last")
+	gotResult, err := v.Read("Note", "## Last")
 	if err != nil {
 		t.Fatalf("read last section: %v", err)
 	}
+	got := gotResult.Content
 
 	want := "## Last\n\nLast content.\nMore last.\n"
 	if got != want {
@@ -1792,7 +1798,7 @@ func TestReadHeadingLastSection(t *testing.T) {
 // Integration test 11: nonexistent heading returns error
 func TestReadHeadingNotFoundIntegration(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "## Existing\n\nSome content.\n"
 	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte(content), 0644)
@@ -1815,16 +1821,17 @@ func TestReadHeadingNotFoundIntegration(t *testing.T) {
 
 func TestReadFollow_ReturnsLinkedNotes(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "Main.md"), []byte("# Main\n\nSee [[Alpha]] and [[Beta]].\n"), 0644)
 	os.WriteFile(filepath.Join(vaultDir, "Alpha.md"), []byte("# Alpha\n\nAlpha content.\n"), 0644)
 	os.WriteFile(filepath.Join(vaultDir, "Beta.md"), []byte("# Beta\n\nBeta content.\n"), 0644)
 
-	primary, linked, err := v.ReadFollow("Main", "")
+	primaryResult, linked, err := v.ReadFollow("Main", "")
 	if err != nil {
 		t.Fatalf("ReadFollow: %v", err)
 	}
+	primary := primaryResult.Content
 	if !strings.Contains(primary, "See [[Alpha]]") {
 		t.Error("primary content missing")
 	}
@@ -1849,7 +1856,7 @@ func TestReadFollow_ReturnsLinkedNotes(t *testing.T) {
 
 func TestReadFollow_SkipsBrokenLinks(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "Main.md"), []byte("# Main\n\nSee [[Exists]] and [[Missing]].\n"), 0644)
 	os.WriteFile(filepath.Join(vaultDir, "Exists.md"), []byte("# Exists\n\nHere.\n"), 0644)
@@ -1868,7 +1875,7 @@ func TestReadFollow_SkipsBrokenLinks(t *testing.T) {
 
 func TestReadFollow_DeduplicatesLinks(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "Main.md"), []byte("# Main\n\n[[Alpha]] and again [[Alpha]].\n"), 0644)
 	os.WriteFile(filepath.Join(vaultDir, "Alpha.md"), []byte("# Alpha\n"), 0644)
@@ -1884,7 +1891,7 @@ func TestReadFollow_DeduplicatesLinks(t *testing.T) {
 
 func TestReadFollow_SkipsSelfLinks(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "Main.md"), []byte("# Main\n\n[[Main]] and [[Alpha]].\n"), 0644)
 	os.WriteFile(filepath.Join(vaultDir, "Alpha.md"), []byte("# Alpha\n"), 0644)
@@ -1900,16 +1907,17 @@ func TestReadFollow_SkipsSelfLinks(t *testing.T) {
 
 func TestReadFollow_WithHeading(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "Main.md"), []byte("## Part A\ncontent a\n[[Alpha]]\n## Part B\ncontent b\n[[Beta]]\n"), 0644)
 	os.WriteFile(filepath.Join(vaultDir, "Alpha.md"), []byte("# Alpha\n"), 0644)
 	os.WriteFile(filepath.Join(vaultDir, "Beta.md"), []byte("# Beta\n"), 0644)
 
-	primary, linked, err := v.ReadFollow("Main", "## Part A")
+	primaryResult, linked, err := v.ReadFollow("Main", "## Part A")
 	if err != nil {
 		t.Fatalf("ReadFollow with heading: %v", err)
 	}
+	primary := primaryResult.Content
 	if !strings.Contains(primary, "content a") {
 		t.Error("primary should contain section A")
 	}
@@ -1924,17 +1932,18 @@ func TestReadFollow_WithHeading(t *testing.T) {
 
 func TestReadWithBacklinks_ReturnsBacklinkers(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "Target.md"), []byte("# Target\n\nTarget content.\n"), 0644)
 	os.WriteFile(filepath.Join(vaultDir, "Referrer A.md"), []byte("# A\n\nSee [[Target]] for details.\n"), 0644)
 	os.WriteFile(filepath.Join(vaultDir, "Referrer B.md"), []byte("# B\n\nAlso [[Target]].\n"), 0644)
 	os.WriteFile(filepath.Join(vaultDir, "Unrelated.md"), []byte("# Unrelated\n\nNo links.\n"), 0644)
 
-	primary, linked, err := v.ReadWithBacklinks("Target", "")
+	primaryResult, linked, err := v.ReadWithBacklinks("Target", "")
 	if err != nil {
 		t.Fatalf("ReadWithBacklinks: %v", err)
 	}
+	primary := primaryResult.Content
 	if !strings.Contains(primary, "Target content") {
 		t.Error("primary content missing")
 	}
@@ -1956,14 +1965,15 @@ func TestReadWithBacklinks_ReturnsBacklinkers(t *testing.T) {
 
 func TestReadWithBacklinks_NoBacklinks(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "Orphan.md"), []byte("# Orphan\n\nNo one links here.\n"), 0644)
 
-	primary, linked, err := v.ReadWithBacklinks("Orphan", "")
+	primaryResult, linked, err := v.ReadWithBacklinks("Orphan", "")
 	if err != nil {
 		t.Fatalf("ReadWithBacklinks: %v", err)
 	}
+	primary := primaryResult.Content
 	if !strings.Contains(primary, "No one links here") {
 		t.Error("primary content missing")
 	}
@@ -1979,7 +1989,7 @@ func TestReadWithBacklinks_NoBacklinks(t *testing.T) {
 // Unit test 1: search with context=1 shows 1 line before and after
 func TestSearchContextBasic(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "line one\nline two\nthe architecture is key\nline four\nline five\n"
 	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte(content), 0644)
@@ -2016,7 +2026,7 @@ func TestSearchContextBasic(t *testing.T) {
 // Unit test 2: match on line 1, no lines before (no error/panic)
 func TestSearchContextAtFileStart(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "architecture first line\nline two\nline three\n"
 	os.WriteFile(filepath.Join(vaultDir, "Start.md"), []byte(content), 0644)
@@ -2051,7 +2061,7 @@ func TestSearchContextAtFileStart(t *testing.T) {
 // Unit test 3: match on last line, no lines after
 func TestSearchContextAtFileEnd(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "line one\nline two\narchitecture at the end"
 	os.WriteFile(filepath.Join(vaultDir, "End.md"), []byte(content), 0644)
@@ -2086,7 +2096,7 @@ func TestSearchContextAtFileEnd(t *testing.T) {
 // Unit test 4: multiple matches with overlapping context are merged
 func TestSearchContextMultipleMatches(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "line one\narchitecture here\nmiddle\narchitecture again\nline five\n"
 	os.WriteFile(filepath.Join(vaultDir, "Multi.md"), []byte(content), 0644)
@@ -2127,7 +2137,7 @@ func TestSearchContextMultipleMatches(t *testing.T) {
 // Unit test 5: context=0 shows only the match line
 func TestSearchContextZero(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "line one\narchitecture here\nline three\n"
 	os.WriteFile(filepath.Join(vaultDir, "Zero.md"), []byte(content), 0644)
@@ -2161,7 +2171,7 @@ func TestSearchContextZero(t *testing.T) {
 // Unit test 6: existing query= behavior unchanged when no context used
 func TestSearchQueryUnchangedWithoutContext(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "TestNote.md"),
 		[]byte("# Test\nSome architecture content."), 0644)
@@ -2188,7 +2198,7 @@ func TestSearchQueryUnchangedWithoutContext(t *testing.T) {
 // Integration test 7: create notes in t.TempDir(), search with context, verify output
 func TestSearchContextIntegration(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.MkdirAll(filepath.Join(vaultDir, "decisions"), 0755)
 
 	content := "---\ntype: decision\nstatus: active\n---\n\n# Architecture Decision Record\n\n## Context\n\nThe previous approach used monolithic design.\nAfter reviewing the options,\nthe architecture decision was made\nto use a layered pattern\nwith clear boundaries.\n\n## Decision\n\nWe chose microservices.\n"
@@ -2223,7 +2233,7 @@ func TestSearchContextIntegration(t *testing.T) {
 // Integration test 8: verify SearchWithContext returns proper structured data (replaces JSON format test)
 func TestSearchContextWithJSONFormat(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "line one\nline two\narchitecture here\nline four\nline five\n"
 	os.WriteFile(filepath.Join(vaultDir, "JSON.md"), []byte(content), 0644)
@@ -2254,7 +2264,7 @@ func TestSearchContextWithJSONFormat(t *testing.T) {
 // Integration test 9: verify SearchWithContext returns proper data (replaces CSV format test)
 func TestSearchContextWithCSVFormat(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "line one\narchitecture here\nline three\n"
 	os.WriteFile(filepath.Join(vaultDir, "CSV.md"), []byte(content), 0644)
@@ -2282,7 +2292,7 @@ func TestSearchContextWithCSVFormat(t *testing.T) {
 // Integration test 10: context works alongside [key:value] property filters
 func TestSearchContextWithPropertyFilter(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "Active.md"),
 		[]byte("---\nstatus: active\n---\n\nline one\nthe architecture here\nline three\n"), 0644)
@@ -2312,7 +2322,7 @@ func TestSearchContextWithPropertyFilter(t *testing.T) {
 // Unit test 11: context with title-only match outputs title info
 func TestSearchContextTitleMatch(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "line one\nline two\nline three\n"
 	os.WriteFile(filepath.Join(vaultDir, "Architecture Overview.md"), []byte(content), 0644)
@@ -2340,7 +2350,7 @@ func TestSearchContextTitleMatch(t *testing.T) {
 // Integration test 12: YAML format with context (test library return values)
 func TestSearchContextWithYAMLFormat(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "line one\narchitecture here\nline three\n"
 	os.WriteFile(filepath.Join(vaultDir, "YAML.md"), []byte(content), 0644)
@@ -2370,7 +2380,7 @@ func TestSearchContextWithYAMLFormat(t *testing.T) {
 // Unit test 1: regex search finds matches with a pattern
 func TestSearchRegexBasic(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "Note.md"),
 		[]byte("The architecture is modular.\nDesign uses microservices.\n"), 0644)
@@ -2403,7 +2413,7 @@ func TestSearchRegexBasic(t *testing.T) {
 // Unit test 2: invalid regex returns clear error with compilation message
 func TestSearchRegexInvalid(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte("content"), 0644)
 
 	_, err := v.Search(SearchOptions{Regex: `[invalid`})
@@ -2422,7 +2432,7 @@ func TestSearchRegexInvalid(t *testing.T) {
 // Unit test 3: regex matching is case-insensitive by default
 func TestSearchRegexCaseInsensitive(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "Upper.md"),
 		[]byte("The ARCHITECTURE is here.\n"), 0644)
@@ -2455,7 +2465,7 @@ func TestSearchRegexCaseInsensitive(t *testing.T) {
 // Unit test 4: regex + [key:value] property filter works together
 func TestSearchRegexWithPropertyFilter(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "Active.md"),
 		[]byte("---\nstatus: active\n---\n\nThe architecture is modular.\n"), 0644)
@@ -2488,7 +2498,7 @@ func TestSearchRegexWithPropertyFilter(t *testing.T) {
 // Unit test 5: both query= and regex= provided: regex takes precedence
 func TestSearchRegexAndQueryPrecedence(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "Note.md"),
 		[]byte("The architecture is modular.\nDesign pattern here.\n"), 0644)
@@ -2513,7 +2523,7 @@ func TestSearchRegexAndQueryPrecedence(t *testing.T) {
 // Unit test 6: regex matches against note title too
 func TestSearchRegexMatchesTitle(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Title matches, content does not
 	os.WriteFile(filepath.Join(vaultDir, "Architecture Overview.md"),
@@ -2547,7 +2557,7 @@ func TestSearchRegexMatchesTitle(t *testing.T) {
 // Unit test 7: regex with no matches returns empty
 func TestSearchRegexNoMatch(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "Note.md"),
 		[]byte("Nothing interesting here.\n"), 0644)
@@ -2565,7 +2575,7 @@ func TestSearchRegexNoMatch(t *testing.T) {
 // Integration test 8: create notes in t.TempDir(), search with regex, verify correct matches
 func TestSearchRegexIntegration(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.MkdirAll(filepath.Join(vaultDir, "decisions"), 0755)
 	os.MkdirAll(filepath.Join(vaultDir, "patterns"), 0755)
 
@@ -2605,7 +2615,7 @@ func TestSearchRegexIntegration(t *testing.T) {
 // Integration test 9: complex regex pattern (date pattern)
 func TestSearchRegexComplexPattern(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "WithDate.md"),
 		[]byte("Created on 2025-01-15 for the project.\n"), 0644)
@@ -2638,7 +2648,7 @@ func TestSearchRegexComplexPattern(t *testing.T) {
 // Integration test 10: regex search combined with context= parameter
 func TestSearchRegexWithContext(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	content := "line one\nline two\nthe architecture is key\nline four\nline five\n"
 	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte(content), 0644)
@@ -2680,7 +2690,7 @@ func TestSearchRegexWithContext(t *testing.T) {
 // Unit test 11: search with neither query nor regex errors
 func TestSearchRegexRequiresParam(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte("content"), 0644)
 
 	_, err := v.Search(SearchOptions{})
@@ -2692,7 +2702,7 @@ func TestSearchRegexRequiresParam(t *testing.T) {
 // Unit test 12: existing search behavior unchanged when regex= not provided
 func TestSearchRegexBackwardCompatible(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	os.WriteFile(filepath.Join(vaultDir, "TestNote.md"),
 		[]byte("# Test\nSome architecture content.\n"), 0644)
@@ -2716,7 +2726,7 @@ func TestSearchRegexBackwardCompatible(t *testing.T) {
 // Unit test 13: regex with path filter
 func TestSearchRegexWithPathFilter(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 	os.MkdirAll(filepath.Join(vaultDir, "decisions"), 0755)
 	os.MkdirAll(filepath.Join(vaultDir, "patterns"), 0755)
 
@@ -2804,7 +2814,7 @@ func TestSafePath(t *testing.T) {
 
 func TestCreatePathTraversal(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	err := v.Create("evil", "../outside.md", "pwned", true, false)
 	if err == nil {
@@ -2818,7 +2828,7 @@ func TestCreatePathTraversal(t *testing.T) {
 func TestMovePathTraversal(t *testing.T) {
 	vaultDir := t.TempDir()
 	os.WriteFile(filepath.Join(vaultDir, "legit.md"), []byte("# Legit\n"), 0644)
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Traversal in source
 	_, err := v.Move("../outside.md", "target.md")
@@ -2835,7 +2845,7 @@ func TestMovePathTraversal(t *testing.T) {
 
 func TestDeletePathTraversal(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	_, err := v.Delete("", "../outside.md", true)
 	if err == nil {
@@ -2845,7 +2855,7 @@ func TestDeletePathTraversal(t *testing.T) {
 
 func TestFilesPathTraversal(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	_, err := v.Files("../", "md")
 	if err == nil {
@@ -2855,7 +2865,7 @@ func TestFilesPathTraversal(t *testing.T) {
 
 func TestSearchPathTraversal(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	_, err := v.Search(SearchOptions{Query: "test", Path: "../../"})
 	if err == nil {
@@ -2865,7 +2875,7 @@ func TestSearchPathTraversal(t *testing.T) {
 
 func TestTasksPathTraversal(t *testing.T) {
 	vaultDir := t.TempDir()
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	_, err := v.Tasks(TaskOptions{Path: "../../"})
 	if err == nil {
@@ -2878,7 +2888,7 @@ func TestTemplatesApplyPathTraversal(t *testing.T) {
 	// Create a templates folder and a template
 	os.MkdirAll(filepath.Join(vaultDir, "templates"), 0755)
 	os.WriteFile(filepath.Join(vaultDir, "templates", "default.md"), []byte("# Template\n"), 0644)
-	v := &Vault{dir: vaultDir}
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
 
 	// Traversal in template name
 	err := v.TemplatesApply("../../etc/passwd", "Note", "notes/Note.md")
