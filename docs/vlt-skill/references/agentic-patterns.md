@@ -350,6 +350,53 @@ done
 
 ---
 
+## Pattern 8: Integrity-Aware Workflows
+
+Use integrity tracking to detect when external tools modify vault notes.
+
+### Setup at Session Start
+
+```bash
+# Ensure baseline exists (safe to re-run -- overwrites with current state)
+vlt vault="Claude" integrity:baseline
+```
+
+### Check Before Critical Reads
+
+```bash
+# Read with automatic integrity warning
+vlt vault="Claude" read file="Session Operating Mode"
+# If modified outside vlt, stderr shows:
+# vlt: INTEGRITY MISMATCH for "Session Operating Mode" -- file modified outside vlt
+
+# Programmatic check
+status=$(vlt vault="Claude" integrity:status --json | jq -r '.[] | select(.status=="mismatch") | .path')
+if [ -n "$status" ]; then
+  echo "WARNING: These notes were modified outside vlt:"
+  echo "$status"
+fi
+```
+
+### After Git Pull or Sync
+
+```bash
+# Acknowledge all changes from the last 5 minutes
+vlt vault="Claude" integrity:acknowledge since="5m"
+```
+
+### CI Quality Gate
+
+```bash
+# Fail CI if vault has unacknowledged external changes
+mismatches=$(vlt vault="V" integrity:status --json | jq '[.[] | select(.status=="mismatch")] | length')
+if [ "$mismatches" -gt 0 ]; then
+  echo "ERROR: $mismatches files modified outside vlt"
+  exit 1
+fi
+```
+
+---
+
 ## Anti-Patterns to Avoid
 
 ### 1. Capturing Too Late

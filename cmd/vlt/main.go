@@ -16,7 +16,7 @@ import (
 	vlt "github.com/RamXX/vlt"
 )
 
-const version = "0.8.0"
+const version = "0.9.0"
 
 var knownCommands = map[string]bool{
 	"read": true, "search": true, "create": true,
@@ -308,7 +308,8 @@ Library usage:
   import "github.com/RamXX/vlt"
 
   vault, _ := vlt.OpenByName("MyVault")
-  content, _ := vault.Read("Session Operating Mode", "")
+  result, _ := vault.Read("Session Operating Mode", "")
+  fmt.Print(result.Content)           // result.Integrity has tamper status
   results, _ := vault.Search(vlt.SearchOptions{Query: "architecture"})
   _ = vault.Append("Daily Log", "New entry", false)
 

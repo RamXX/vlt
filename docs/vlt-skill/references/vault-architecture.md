@@ -265,6 +265,51 @@ This preserves history while directing readers to current guidance.
 
 ---
 
+## Integrity Registry
+
+vlt maintains a SHA-256 content-hash registry outside the vault directory to detect
+modifications not made through vlt (e.g., manual edits in Obsidian, `git pull`, text editors).
+
+### Storage Layout
+
+```
+~/.vlt/
+  registries/
+    <vault-id>/           # SHA-256(vault-abs-path)[:16]
+      registry.json       # {rel-path: {hash, ts}} mapping
+```
+
+- Registry is stored outside the vault to avoid polluting notes
+- Directory permissions are 0700; file permissions are 0600
+- Writes are atomic (write temp + rename) to prevent corruption
+- One registry per vault, identified by a stable hash of the vault's absolute path
+
+### How It Works
+
+1. Every write operation (Create, Append, Prepend, Write, Patch, Move, Delete, PropertySet, PropertyRemove, Daily, TemplatesApply) registers the content hash after a successful write
+2. Read operations (Read, ReadFollow, ReadWithBacklinks) verify the hash and return an IntegrityStatus
+3. Mismatches produce a stderr warning but do not block the read
+4. `integrity:baseline` registers all existing files at once
+5. `integrity:acknowledge` re-registers specific files or files modified within a time window
+
+### Integration with Agents
+
+For agentic workflows, integrity tracking answers: "Was this note modified by something other than me?" This is useful for:
+- Detecting when Obsidian or a human has edited a note the agent is managing
+- Identifying vault changes after `git pull` or sync operations
+- Auditing which notes were modified outside automated workflows
+
+## Path Traversal Protection
+
+All user-supplied paths are validated by `safePath()` before any filesystem operation:
+- Rejects absolute paths
+- Rejects `..` components
+- Verifies the resolved path is within the vault boundary
+- Applies to: Create, Move, Delete, Search, Files, Tasks, Daily, TemplatesApply
+
+This is critical for agentic workflows where file paths may originate from untrusted or
+LLM-generated input.
+
 ## Scaling Considerations
 
 ### Small Vaults (< 500 Notes)

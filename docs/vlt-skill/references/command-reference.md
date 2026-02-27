@@ -476,6 +476,64 @@ vlt vault="V" bookmarks:remove file="Important Note"
 
 ---
 
+## Integrity Operations
+
+### integrity:baseline
+
+Register SHA-256 content hashes for all `.md` files in the vault. This creates the baseline for tamper detection.
+
+```bash
+vlt vault="V" integrity:baseline
+```
+
+**Behavior:**
+- Walks all `.md` files in the vault (skipping hidden directories)
+- Registers each file's content hash in `~/.vlt/registries/<vault-id>/registry.json`
+- Overwrites any existing registry entries
+- Prints confirmation on success
+
+---
+
+### integrity:status
+
+Show the integrity status of all registered files plus any untracked files.
+
+```bash
+vlt vault="V" integrity:status
+vlt vault="V" integrity:status --json
+```
+
+**Output:**
+- Lists files with issues (mismatch, untracked) with their status
+- Reports total count of OK files and issues
+- JSON format returns an array of `{path, status}` objects
+
+**Statuses:**
+- `ok` -- Content matches the registered hash
+- `untracked` -- File exists but has no registry entry
+- `mismatch` -- Content differs from the registered hash
+
+---
+
+### integrity:acknowledge
+
+Re-register a file after an external modification, accepting the current content as the new baseline.
+
+```bash
+vlt vault="V" integrity:acknowledge file="Note Title"
+vlt vault="V" integrity:acknowledge since="1h"
+```
+
+**Parameters:**
+- `file=` (one of) -- Note title or alias to acknowledge
+- `since=` (one of) -- Duration string (Go format: `1h`, `30m`, `2h30m`). Acknowledges all `.md` files modified within the duration.
+
+**Behavior:**
+- Re-reads the file and registers its current hash
+- `since=` walks all vault files and filters by modification time
+
+---
+
 ## URI Generation
 
 ### uri

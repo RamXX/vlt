@@ -286,6 +286,80 @@ count=$(vlt vault="V" search query="[type:decision]" | wc -l)
 
 ---
 
+## File Integrity Workflow
+
+### Initial Setup
+
+Run `integrity:baseline` once to register all existing vault files:
+
+```bash
+vlt vault="V" integrity:baseline
+# integrity baseline registered for all vault files
+```
+
+After this, all subsequent writes through vlt automatically update the registry.
+
+### Checking Status
+
+```bash
+# Quick check -- are any files tampered?
+vlt vault="V" integrity:status
+
+# Programmatic check
+vlt vault="V" integrity:status --json
+```
+
+### Handling Mismatches
+
+When a file is modified outside vlt (e.g., by Obsidian, a text editor, or git):
+
+```bash
+# Read will warn on stderr
+vlt vault="V" read file="Modified Note"
+# vlt: INTEGRITY MISMATCH for "Modified Note" -- file modified outside vlt
+# (content is still returned)
+
+# Acknowledge the change (accept current content as new baseline)
+vlt vault="V" integrity:acknowledge file="Modified Note"
+
+# Or acknowledge all recent changes (e.g., after a git pull)
+vlt vault="V" integrity:acknowledge since="5m"
+```
+
+### Library API: ReadResult
+
+For Go library consumers, `Read`, `ReadFollow`, and `ReadWithBacklinks` return a `ReadResult`
+struct instead of a raw string (breaking change in v0.9.0):
+
+```go
+type ReadResult struct {
+    Content   string
+    Integrity IntegrityStatus  // OK, Untracked, Mismatch, NoRegistry
+}
+
+result, err := vault.Read("Note", "")
+fmt.Print(result.Content)
+if result.Integrity == vlt.IntegrityMismatch {
+    // Handle tampered file
+}
+```
+
+---
+
+## Advisory Locking
+
+vlt uses kernel-managed advisory locks for safe concurrent access:
+
+- **Read commands** acquire a shared lock (multiple readers allowed)
+- **Write commands** acquire an exclusive lock (blocks other writers and readers)
+- Lock file: `.vlt.lock` in the vault root
+- Implementation: `flock(2)` on Unix, `LockFileEx`/`UnlockFileEx` on Windows
+- Auto-releases on process crash or kill -- no stale lock cleanup needed
+
+This is transparent to CLI users. Library consumers can use `vlt.LockVault()` directly.
+
+---
+
 ## Performance Considerations
 
 vlt is designed for speed with zero external dependencies:

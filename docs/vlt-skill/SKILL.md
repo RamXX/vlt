@@ -7,11 +7,13 @@ description: >-
   "apply a template", "manage bookmarks", "find broken links",
   "append to a note", "patch a note section", "list vault tags",
   "manage tasks in vault", "move or rename a note", "delete a note",
-  "generate an obsidian URI", or mentions Obsidian vault operations,
-  vlt CLI, or vault-backed knowledge management.
+  "generate an obsidian URI", "check file integrity", "detect tampering",
+  "integrity baseline", "integrity status", "acknowledge external changes",
+  or mentions Obsidian vault operations, vlt CLI, or vault-backed
+  knowledge management.
   Provides comprehensive guidance for using vlt in agentic AI workflows,
   CI/CD pipelines, and shell scripting.
-version: 0.5.0
+version: 0.9.0
 ---
 
 # vlt -- Obsidian Vault CLI for Coding Agents
@@ -120,6 +122,14 @@ All listing commands support structured output:
 | `bookmarks:add` | Bookmark a note | `file=` |
 | `bookmarks:remove` | Remove bookmark | `file=` |
 | `uri` | Generate `obsidian://` URI | `file=`, `heading=`, `block=` |
+
+### Integrity
+
+| Command | Purpose | Key Parameters |
+|---------|---------|----------------|
+| `integrity:baseline` | Register all vault files for tamper detection | (none) |
+| `integrity:status` | Show integrity status of all files | (none) |
+| `integrity:acknowledge` | Re-register after external modification | `file=` or `since=` |
 
 ## Agentic Session Workflow
 
@@ -238,6 +248,10 @@ cat data.md | vlt vault="V" create name="Import" path="_inbox/Import.md"
 - **Inert zones**: Links, tags, and references inside code blocks, comments, and math are ignored.
 - **Timestamps**: Opt-in via `timestamps` flag or `VLT_TIMESTAMPS=1` env var.
 - **Case-insensitive**: Tag matching and alias resolution are case-insensitive.
+- **Integrity tracking**: All write operations register SHA-256 hashes. `read` warns on mismatch (informational, not blocking). Use `integrity:baseline` for initial registration, `integrity:acknowledge` to accept external changes.
+- **Path traversal protection**: All user-supplied paths are validated against the vault boundary. Absolute paths, `..` components, and paths resolving outside the vault are rejected.
+- **Advisory locking**: Write commands acquire exclusive `flock(2)` locks; read commands acquire shared locks. Auto-releases on crash.
+- **Relative vault paths**: In addition to vault names and absolute paths, relative paths (e.g., `.vault/knowledge`) are supported.
 
 ## Additional Resources
 

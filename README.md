@@ -197,6 +197,15 @@ vlt search query="architecture"
 | `bookmarks:add file="<title>"` | Add a bookmark for a note |
 | `bookmarks:remove file="<title>"` | Remove a bookmark |
 
+### Integrity operations
+
+| Command | Description |
+|---------|-------------|
+| `integrity:baseline` | Register SHA-256 hashes for all vault files |
+| `integrity:status` | Show integrity status of all registered files |
+| `integrity:acknowledge file="<title>"` | Re-register a file after external modification |
+| `integrity:acknowledge since="<duration>"` | Re-register files modified within duration (e.g., `1h`) |
+
 ### URI generation
 
 | Command | Description |
@@ -396,6 +405,37 @@ vlt vault="MyVault" bookmarks:remove file="Old Note"
 
 Bookmarks are resolved by note title (same alias-aware resolution as all other commands). Groups in the bookmarks file are traversed recursively.
 
+### File integrity registry
+
+vlt tracks SHA-256 content hashes for every file written through its API. On read, the current content is verified against the registered hash to detect modifications made outside vlt (e.g., by Obsidian, a text editor, or `git pull`).
+
+```bash
+# Register all existing vault files as the baseline
+vlt vault="MyVault" integrity:baseline
+
+# Check integrity of all registered files
+vlt vault="MyVault" integrity:status
+
+# Accept an external modification (re-register the current content)
+vlt vault="MyVault" integrity:acknowledge file="Modified Note"
+
+# Accept all files modified in the last hour
+vlt vault="MyVault" integrity:acknowledge since="1h"
+```
+
+Integrity statuses:
+
+| Status | Meaning |
+|--------|---------|
+| `ok` | Content matches the registered hash |
+| `untracked` | No registry entry exists for this file |
+| `mismatch` | Content differs from the registered hash |
+| `no-registry` | No registry has been created yet (run `integrity:baseline`) |
+
+When a mismatch is detected during `read`, a warning is printed to stderr: `vlt: INTEGRITY MISMATCH for "Note" -- file modified outside vlt`. The content is still returned -- integrity is informational, not blocking.
+
+The registry is stored at `~/.vlt/registries/<vault-id>/registry.json` (outside the vault directory, so it doesn't pollute your notes). The vault ID is derived from the vault's absolute path.
+
 ### URI generation
 
 Generate `obsidian://` URIs for opening notes in the Obsidian app:
@@ -561,6 +601,10 @@ vlt was built independently for agentic memory use cases, not as a replacement f
 | Inert zone masking (code, comments, math) | Yes | N/A (full parser) |
 | Timestamps (created_at/updated_at) | Yes | No |
 | Output formats (JSON/CSV/YAML/TSV/Tree) | Yes | No |
+| File integrity registry (tamper detection) | Yes | No |
+| Vault-level advisory locking | Yes | No |
+| Path traversal protection | Yes | N/A |
+| Relative vault paths | Yes | No |
 | Requires Obsidian running | **No** | Yes |
 | External dependencies | **None** | Node.js |
 
@@ -570,7 +614,7 @@ vlt is structured as an importable Go library (`package vlt`) with a thin CLI wr
 
 ```
 package vlt (root)           Importable library
-  vault.go                   Vault type, discovery, note resolution
+  vault.go                   Vault type, discovery, note resolution, path traversal guards
   commands.go                Vault methods (Read, Search, Create, Write, Patch, Move, etc.)
   wikilinks.go               Wikilink/embed parsing, replacement, markdown link repair
   frontmatter.go             YAML frontmatter extraction and manipulation
@@ -580,9 +624,12 @@ package vlt (root)           Importable library
   daily.go                   Daily note creation and config loading
   templates.go               Template discovery, variable substitution, note creation
   bookmarks.go               Bookmark management via .obsidian/bookmarks.json
+  integrity.go               SHA-256 content-hash registry for tamper detection
   lock.go                    Write-command classification and lock file constants
   lock_unix.go               Advisory file locking via flock(2)
   lock_windows.go            Advisory file locking via kernel32 LockFileEx/UnlockFileEx
+
+~/.vlt/registries/<vault-id>/  Integrity registry storage (per-vault, outside vault dir)
 
 cmd/vlt/ (CLI)               Thin CLI wrapper
   main.go                    CLI entry point, argument parsing, command dispatch
@@ -598,7 +645,8 @@ Other Go programs can import vlt directly:
 import "github.com/RamXX/vlt"
 
 vault, _ := vlt.OpenByName("MyVault")
-content, _ := vault.Read("Session Operating Mode", "")
+result, _ := vault.Read("Session Operating Mode", "")
+fmt.Print(result.Content)           // result.Integrity has tamper status
 results, _ := vault.Search(vlt.SearchOptions{Query: "architecture"})
 _ = vault.Append("Daily Log", "New entry", false)
 ```
@@ -612,15 +660,18 @@ _ = vault.Append("Daily Log", "New entry", false)
 - **Simple frontmatter parsing** -- String-based YAML parsing handles Obsidian's common patterns (key-value, inline lists, block lists) without pulling in a full YAML library.
 - **Inert zone masking** -- Before scanning for links, tags, or references, content inside code blocks, comments, and math expressions is masked out to prevent false positives. Each pass preserves byte offsets and line numbers so that all downstream operations remain position-accurate.
 - **Vault-level advisory locking** -- Multiple vlt processes can safely operate on the same vault concurrently. Write commands (`create`, `append`, `move`, etc.) acquire an exclusive `flock(2)` lock; read commands acquire a shared lock. The lock is kernel-managed via `.vlt.lock` in the vault root, so it auto-releases on process crash or kill -- no stale lock cleanup needed.
+- **File integrity registry** -- Every write path registers a SHA-256 content hash in `~/.vlt/registries/<vault-id>/registry.json`. On read, the hash is verified and an `IntegrityStatus` (OK, Untracked, Mismatch, NoRegistry) is returned. This detects modifications made outside vlt without blocking them.
+- **Path traversal protection** -- All user-supplied paths are validated by `safePath()`, which rejects absolute paths, `..` traversals, and any result resolving outside the vault root. This prevents directory escape attacks in agentic workflows where file paths may come from untrusted input.
+- **Relative vault paths** -- In addition to vault names and absolute paths, vlt supports relative paths (e.g., `.vault/knowledge`) for vault resolution, aligning with embedded vault patterns used by plugins.
 
 ### Stats
 
 | Metric | Value |
 |--------|-------|
-| Lines of code | ~4,100 (source) |
-| Lines of tests | ~10,000 |
-| Test functions | 308 |
-| Test coverage | 80% |
+| Lines of code | ~5,500 (source) |
+| Lines of tests | ~10,900 |
+| Test functions | 344 |
+| Test coverage | 84% |
 | External dependencies | 0 |
 | Go version | 1.24+ |
 
@@ -682,7 +733,25 @@ When demand warrants it, we plan to integrate [tantivy](https://github.com/quick
 
 This will be an opt-in feature -- the zero-dependency linear scan remains the default for simplicity. If this matters to you, open an issue or upvote an existing one.
 
-### Recently shipped (v0.5.0)
+### Recently shipped (v0.9.0)
+
+- **File integrity registry** -- SHA-256 content-hash registry detects modifications made outside vlt. New commands: `integrity:baseline`, `integrity:status`, `integrity:acknowledge`. Registry stored at `~/.vlt/registries/<vault-id>/` with atomic writes. `Read`, `ReadFollow`, and `ReadWithBacklinks` return `ReadResult` with an `IntegrityStatus` field (breaking API change for library consumers).
+- **Path traversal protection** -- `safePath()` validates all user-supplied paths, rejecting absolute paths, `..` components, and results outside the vault root.
+- **Relative vault paths** -- Vault resolver accepts relative paths (e.g., `.vault/knowledge`) in addition to names and absolute paths.
+
+### Previously shipped (v0.8.0)
+
+- **Graph-aware read** -- `read follow` returns a note plus full content of all forward-linked notes (depth 1). `read backlinks` returns a note plus full content of all back-linkers. Retrieves an entire link neighborhood in a single call.
+
+### Previously shipped (v0.7.0)
+
+- **Importable library** -- Refactored from standalone CLI to `package vlt` importable Go library with thin CLI wrapper in `cmd/vlt/`. 30+ exported types (`SearchResult`, `Task`, `Wikilink`, `PatchOptions`, etc.) and exported utilities (`ParseWikilinks`, `ExtractFrontmatter`, `MaskInertContent`, etc.).
+
+### Previously shipped (v0.6.0)
+
+- **Vault-level advisory locking** -- Multiple vlt processes can safely operate on the same vault concurrently. Write commands acquire exclusive `flock(2)` locks; read commands acquire shared locks. Kernel-managed via `.vlt.lock` -- auto-releases on crash.
+
+### Previously shipped (v0.5.0)
 
 - **Content manipulation** -- `write` (replace body preserving frontmatter), `patch` (heading-targeted or line-targeted replace/delete), `read heading=` (extract a single section)
 - **Regex search** -- `search regex="pattern"` with case-insensitive matching; `context=N` for grep -C style surrounding lines
