@@ -188,39 +188,56 @@ func headingLevel(line string) int {
 // Heading match is case-insensitive and trims whitespace.
 // The section extends from the heading to the line before the next heading of
 // equal or higher level (or EOF). This operates on RAW content, not masked.
-func findSection(lines []string, heading string) (sectionBounds, bool) {
+// Returns an error if the heading is not found or if multiple identical headings exist.
+func findSection(lines []string, heading string) (sectionBounds, error) {
 	heading = strings.TrimSpace(heading)
 	targetLevel := headingLevel(heading)
 	if targetLevel == 0 {
-		return sectionBounds{}, false
+		return sectionBounds{}, fmt.Errorf("invalid heading: %q", heading)
 	}
 
 	headingTextLower := strings.ToLower(heading)
 
+	// First pass: count matches to detect ambiguity.
+	var matchLines []int
 	for i, line := range lines {
 		lineTrimmed := strings.TrimSpace(line)
 		if strings.ToLower(lineTrimmed) == headingTextLower {
-			// Found the heading. Now find the end of the section.
-			contentStart := i + 1
-			contentEnd := len(lines) // default: extends to EOF
-
-			for j := contentStart; j < len(lines); j++ {
-				lvl := headingLevel(lines[j])
-				if lvl > 0 && lvl <= targetLevel {
-					contentEnd = j
-					break
-				}
-			}
-
-			return sectionBounds{
-				HeadingLine:  i,
-				ContentStart: contentStart,
-				ContentEnd:   contentEnd,
-			}, true
+			matchLines = append(matchLines, i)
 		}
 	}
 
-	return sectionBounds{}, false
+	if len(matchLines) == 0 {
+		return sectionBounds{}, fmt.Errorf("heading %q not found", heading)
+	}
+	if len(matchLines) > 1 {
+		// Build line numbers (1-based for user display).
+		nums := make([]string, len(matchLines))
+		for j, ml := range matchLines {
+			nums[j] = fmt.Sprintf("%d", ml+1)
+		}
+		return sectionBounds{}, fmt.Errorf("heading %q is ambiguous: found %d matches at lines %s",
+			heading, len(matchLines), strings.Join(nums, ", "))
+	}
+
+	// Exactly one match.
+	i := matchLines[0]
+	contentStart := i + 1
+	contentEnd := len(lines) // default: extends to EOF
+
+	for j := contentStart; j < len(lines); j++ {
+		lvl := headingLevel(lines[j])
+		if lvl > 0 && lvl <= targetLevel {
+			contentEnd = j
+			break
+		}
+	}
+
+	return sectionBounds{
+		HeadingLine:  i,
+		ContentStart: contentStart,
+		ContentEnd:   contentEnd,
+	}, nil
 }
 
 // parseLineSpec parses a line specification like "5" or "5-10" into start and end
@@ -316,9 +333,9 @@ func (v *Vault) Read(title, heading string) (ReadResult, error) {
 
 	// Heading-scoped read: find the section and return heading + content.
 	lines := strings.Split(string(data), "\n")
-	bounds, found := findSection(lines, heading)
-	if !found {
-		return ReadResult{}, fmt.Errorf("heading %q not found in %q", heading, title)
+	bounds, err := findSection(lines, heading)
+	if err != nil {
+		return ReadResult{}, fmt.Errorf("%s in %q", err, title)
 	}
 
 	// Extract from heading line through end of section.
@@ -363,9 +380,9 @@ func (v *Vault) ReadFollow(title, heading string) (ReadResult, []LinkedNote, err
 	primary := string(data)
 	if heading != "" {
 		lines := strings.Split(primary, "\n")
-		bounds, found := findSection(lines, heading)
-		if !found {
-			return ReadResult{}, nil, fmt.Errorf("heading %q not found in %q", heading, title)
+		bounds, err := findSection(lines, heading)
+		if err != nil {
+			return ReadResult{}, nil, fmt.Errorf("%s in %q", err, title)
 		}
 		section := lines[bounds.HeadingLine:bounds.ContentEnd]
 		primary = strings.Join(section, "\n")
@@ -424,9 +441,9 @@ func (v *Vault) ReadWithBacklinks(title, heading string) (ReadResult, []LinkedNo
 	primary := string(data)
 	if heading != "" {
 		lines := strings.Split(primary, "\n")
-		bounds, found := findSection(lines, heading)
-		if !found {
-			return ReadResult{}, nil, fmt.Errorf("heading %q not found in %q", heading, title)
+		bounds, err := findSection(lines, heading)
+		if err != nil {
+			return ReadResult{}, nil, fmt.Errorf("%s in %q", err, title)
 		}
 		section := lines[bounds.HeadingLine:bounds.ContentEnd]
 		primary = strings.Join(section, "\n")
@@ -978,9 +995,9 @@ func (v *Vault) Patch(title string, opts PatchOptions) error {
 
 	if heading != "" {
 		// Heading-targeted patch.
-		bounds, found := findSection(lines, heading)
-		if !found {
-			return fmt.Errorf("heading %q not found in %q", heading, title)
+		bounds, err := findSection(lines, heading)
+		if err != nil {
+			return fmt.Errorf("%s in %q", err, title)
 		}
 
 		if opts.Delete {

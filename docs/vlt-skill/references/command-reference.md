@@ -170,6 +170,7 @@ vlt vault="V" patch file="Note" line="10-15" delete
 - Replaces from the heading line through the next heading of same or higher level (exclusive)
 - The heading line itself is preserved; content beneath it is replaced
 - If `delete` is set, both the heading and its content are removed
+- The heading must be unique within the note; duplicate headings produce an error with match count and line numbers
 
 ---
 

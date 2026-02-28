@@ -1379,6 +1379,24 @@ func TestPatchHeadingNotFound(t *testing.T) {
 	}
 }
 
+// Unit test 12b: error for duplicate headings via Patch
+func TestPatchDuplicateHeading(t *testing.T) {
+	vaultDir := t.TempDir()
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
+
+	content := "## Section\ncontent a\n## Section\ncontent b\n"
+	notePath := filepath.Join(vaultDir, "DupHead.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	err := v.Patch("DupHead", PatchOptions{Heading: "## Section", Content: "new"})
+	if err == nil {
+		t.Fatal("expected error for duplicate headings")
+	}
+	if !strings.Contains(err.Error(), "ambiguous") {
+		t.Errorf("error should mention ambiguous, got: %v", err)
+	}
+}
+
 // Unit test 13: error without file=
 func TestPatchRequiresFile(t *testing.T) {
 	vaultDir := t.TempDir()
@@ -1586,9 +1604,9 @@ func TestPatchThenBacklinks(t *testing.T) {
 func TestFindSection(t *testing.T) {
 	lines := strings.Split("## Section A\ncontent a\nmore a\n## Section B\ncontent b\n", "\n")
 
-	bounds, found := findSection(lines, "## Section A")
-	if !found {
-		t.Fatal("section not found")
+	bounds, err := findSection(lines, "## Section A")
+	if err != nil {
+		t.Fatalf("findSection: %v", err)
 	}
 	if bounds.HeadingLine != 0 {
 		t.Errorf("HeadingLine = %d, want 0", bounds.HeadingLine)
@@ -1605,9 +1623,9 @@ func TestFindSection(t *testing.T) {
 func TestFindSectionAtEOF(t *testing.T) {
 	lines := strings.Split("## First\nfirst content\n## Last\nlast content\nmore last\n", "\n")
 
-	bounds, found := findSection(lines, "## Last")
-	if !found {
-		t.Fatal("section not found")
+	bounds, err := findSection(lines, "## Last")
+	if err != nil {
+		t.Fatalf("findSection: %v", err)
 	}
 	if bounds.ContentEnd != len(lines) {
 		t.Errorf("ContentEnd = %d, want %d (EOF)", bounds.ContentEnd, len(lines))
@@ -1618,22 +1636,57 @@ func TestFindSectionAtEOF(t *testing.T) {
 func TestFindSectionCaseInsensitive(t *testing.T) {
 	lines := strings.Split("## My Section\ncontent here\n", "\n")
 
-	bounds, found := findSection(lines, "## my section")
-	if !found {
-		t.Fatal("case-insensitive match failed")
+	bounds, err := findSection(lines, "## my section")
+	if err != nil {
+		t.Fatalf("case-insensitive match failed: %v", err)
 	}
 	if bounds.HeadingLine != 0 {
 		t.Errorf("HeadingLine = %d, want 0", bounds.HeadingLine)
 	}
 }
 
-// Unit test 4: returns false for nonexistent heading
+// Unit test 4: returns error for nonexistent heading
 func TestFindSectionNotFound(t *testing.T) {
 	lines := strings.Split("## Existing\ncontent\n", "\n")
 
-	_, found := findSection(lines, "## Nonexistent")
-	if found {
-		t.Error("expected section not to be found")
+	_, err := findSection(lines, "## Nonexistent")
+	if err == nil {
+		t.Error("expected error for nonexistent heading")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error should mention 'not found', got: %v", err)
+	}
+}
+
+// Unit test 5b: returns error for duplicate headings
+func TestFindSectionDuplicateHeading(t *testing.T) {
+	lines := strings.Split("## Section\ncontent a\n## Section\ncontent b\n", "\n")
+
+	_, err := findSection(lines, "## Section")
+	if err == nil {
+		t.Fatal("expected error for duplicate headings")
+	}
+	if !strings.Contains(err.Error(), "ambiguous") {
+		t.Errorf("error should mention 'ambiguous', got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "2 matches") {
+		t.Errorf("error should report match count, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "lines 1, 3") {
+		t.Errorf("error should report line numbers (1-based), got: %v", err)
+	}
+}
+
+// Unit test 5c: returns error for triple duplicate headings
+func TestFindSectionTripleDuplicateHeading(t *testing.T) {
+	lines := strings.Split("## Dup\na\n## Dup\nb\n## Dup\nc\n", "\n")
+
+	_, err := findSection(lines, "## Dup")
+	if err == nil {
+		t.Fatal("expected error for triple duplicate headings")
+	}
+	if !strings.Contains(err.Error(), "3 matches") {
+		t.Errorf("error should report 3 matches, got: %v", err)
 	}
 }
 

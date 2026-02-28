@@ -733,7 +733,11 @@ When demand warrants it, we plan to integrate [tantivy](https://github.com/quick
 
 This will be an opt-in feature -- the zero-dependency linear scan remains the default for simplicity. If this matters to you, open an issue or upvote an existing one.
 
-### Recently shipped (v0.9.0)
+### Recently shipped (v0.9.1)
+
+- **Duplicate heading detection** -- `patch` (and heading-scoped `read`) now detects duplicate headings and returns a clear error with match count and 1-based line numbers instead of silently targeting the first match. Error format: `heading "## X" is ambiguous: found N matches at lines 1, 5`.
+
+### Previously shipped (v0.9.0)
 
 - **File integrity registry** -- SHA-256 content-hash registry detects modifications made outside vlt. New commands: `integrity:baseline`, `integrity:status`, `integrity:acknowledge`. Registry stored at `~/.vlt/registries/<vault-id>/` with atomic writes. `Read`, `ReadFollow`, and `ReadWithBacklinks` return `ReadResult` with an `IntegrityStatus` field (breaking API change for library consumers).
 - **Path traversal protection** -- `safePath()` validates all user-supplied paths, rejecting absolute paths, `..` components, and results outside the vault root.

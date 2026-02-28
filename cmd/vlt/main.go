@@ -16,7 +16,7 @@ import (
 	vlt "github.com/RamXX/vlt"
 )
 
-const version = "0.9.0"
+const version = "0.9.1"
 
 var knownCommands = map[string]bool{
 	"read": true, "search": true, "create": true,

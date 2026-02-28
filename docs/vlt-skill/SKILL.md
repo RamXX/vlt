@@ -13,7 +13,7 @@ description: >-
   knowledge management.
   Provides comprehensive guidance for using vlt in agentic AI workflows,
   CI/CD pipelines, and shell scripting.
-version: 0.9.0
+version: 0.9.1
 ---
 
 # vlt -- Obsidian Vault CLI for Coding Agents
@@ -213,6 +213,7 @@ vlt vault="V" search regex="TODO|FIXME|HACK" context="2"
 ```bash
 vlt vault="V" patch file="Note" heading="## Status" content="Completed 2026-02-19."
 ```
+The heading must be unique within the note. If duplicate headings exist, patch returns an error with the match count and line numbers. Fix the note to have unique headings first, or use `line=` targeting instead.
 
 ### Edit by Line Number
 ```bash
