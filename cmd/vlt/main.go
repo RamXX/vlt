@@ -222,6 +222,7 @@ File commands:
   patch          file="<title>" heading="<heading>" [content="<text>"] [delete] [timestamps]  Section edit
   patch          file="<title>" line="<N>" [content="<text>"] [delete] [timestamps]           Line edit
   patch          file="<title>" line="<N-M>" [content="<text>"] [delete] [timestamps]         Line range edit
+  patch          file="<title>" old="<text>" new="<text>" [heading=|line=] [timestamps]       Find and replace
   move           path="<from>" to="<to>"                     Move/rename (updates wiki + md links)
   delete         file="<title>" [permanent]                  Trash (or permanently delete)
   files          [folder="<dir>"] [ext="<ext>"] [total]      List vault files
@@ -276,6 +277,8 @@ Options:
   silent           Suppress output on create.
   permanent        Hard delete instead of .trash.
   delete           Remove heading+content or line(s) instead of replacing (patch).
+  old/new          Find-and-replace within scope (heading, line, or file-wide if neither).
+  heading          Accepts "## Section" (exact level) or "Section" (any level).
   timestamps       Auto-manage created_at/updated_at frontmatter (or set VLT_TIMESTAMPS=1).
   counts           Show note counts with tags.
   total            Show count instead of listing files.
@@ -329,6 +332,8 @@ Examples:
   vlt vault="ProjectVault" patch file="Note" line="5" content="replacement line"
   vlt vault="ProjectVault" patch file="Note" line="5-10" content="replacement block"
   vlt vault="ProjectVault" patch file="Note" line="5" delete
+  vlt vault="ProjectVault" patch file="Note" old="old text" new="new text"
+  vlt vault="ProjectVault" patch file="Note" heading="Section" old="find" new="replace"
   vlt vault="AgentVault" move path="_inbox/Old.md" to="decisions/New.md"
   vlt vault="AgentVault" delete file="Old Draft"
   vlt vault="AgentVault" delete file="Old Draft" permanent

@@ -2955,3 +2955,205 @@ func TestTemplatesApplyPathTraversal(t *testing.T) {
 		t.Fatal("TemplatesApply with traversal note path should fail")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Level-insensitive heading matching tests
+// ---------------------------------------------------------------------------
+
+func TestFindSectionLevelInsensitive(t *testing.T) {
+	vaultDir := t.TempDir()
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
+
+	content := "# Main\nIntro.\n## Sub Section\nSub content.\n### Deep\nDeep content.\n"
+	notePath := filepath.Join(vaultDir, "LevelTest.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	// Exact match with ### prefix works (backward compat).
+	if err := v.Patch("LevelTest", PatchOptions{Heading: "### Deep", Content: "patched\n"}); err != nil {
+		t.Fatalf("exact heading match failed: %v", err)
+	}
+	got, _ := os.ReadFile(notePath)
+	if !strings.Contains(string(got), "patched") {
+		t.Fatal("exact heading patch did not apply")
+	}
+
+	// Reset file.
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	// Level-insensitive: omit ## prefix, match by text only.
+	if err := v.Patch("LevelTest", PatchOptions{Heading: "Sub Section", Content: "level-free\n"}); err != nil {
+		t.Fatalf("level-insensitive match failed: %v", err)
+	}
+	got, _ = os.ReadFile(notePath)
+	if !strings.Contains(string(got), "level-free") {
+		t.Fatal("level-insensitive patch did not apply")
+	}
+}
+
+func TestFindSectionLevelInsensitiveCaseInsensitive(t *testing.T) {
+	vaultDir := t.TempDir()
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
+
+	content := "## My Heading\nContent here.\n"
+	notePath := filepath.Join(vaultDir, "CaseLevel.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	// Level-insensitive + case-insensitive.
+	if err := v.Patch("CaseLevel", PatchOptions{Heading: "my heading", Content: "replaced\n"}); err != nil {
+		t.Fatalf("case+level insensitive failed: %v", err)
+	}
+	got, _ := os.ReadFile(notePath)
+	if !strings.Contains(string(got), "replaced") {
+		t.Fatal("case+level insensitive patch did not apply")
+	}
+}
+
+func TestFindSectionLevelInsensitiveAmbiguous(t *testing.T) {
+	vaultDir := t.TempDir()
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
+
+	// Same text at different heading levels -- ambiguous.
+	content := "## Section\nA content.\n### Section\nB content.\n"
+	notePath := filepath.Join(vaultDir, "Ambig.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	err := v.Patch("Ambig", PatchOptions{Heading: "Section", Content: "new"})
+	if err == nil {
+		t.Fatal("expected ambiguity error for same text at different levels")
+	}
+	if !strings.Contains(err.Error(), "ambiguous") {
+		t.Errorf("error should mention ambiguous, got: %v", err)
+	}
+
+	// But exact level match should still work (not ambiguous when level specified).
+	if err := v.Patch("Ambig", PatchOptions{Heading: "## Section", Content: "exact\n"}); err != nil {
+		t.Fatalf("exact level match should work despite same text at other levels: %v", err)
+	}
+}
+
+func TestFindSectionWrongLevelExactMatch(t *testing.T) {
+	vaultDir := t.TempDir()
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
+
+	content := "### Deep Heading\nContent.\n"
+	notePath := filepath.Join(vaultDir, "WrongLevel.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	// Wrong level should fail (exact mode).
+	err := v.Patch("WrongLevel", PatchOptions{Heading: "## Deep Heading", Content: "nope"})
+	if err == nil {
+		t.Fatal("expected error when heading level is wrong in exact mode")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error should say not found, got: %v", err)
+	}
+
+	// Level-insensitive should succeed.
+	if err := v.Patch("WrongLevel", PatchOptions{Heading: "Deep Heading", Content: "found\n"}); err != nil {
+		t.Fatalf("level-insensitive should find it: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Old/New text replacement tests
+// ---------------------------------------------------------------------------
+
+func TestPatchOldNewBasic(t *testing.T) {
+	vaultDir := t.TempDir()
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
+
+	content := "## Section\nold text here\nmore content\n"
+	notePath := filepath.Join(vaultDir, "OldNew.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	// File-wide old/new replacement (no heading or line scope).
+	if err := v.Patch("OldNew", PatchOptions{Old: "old text here", New: "new text here"}); err != nil {
+		t.Fatalf("old/new patch failed: %v", err)
+	}
+	got, _ := os.ReadFile(notePath)
+	if !strings.Contains(string(got), "new text here") {
+		t.Fatal("old/new patch did not apply")
+	}
+	if strings.Contains(string(got), "old text here") {
+		t.Fatal("old text was not replaced")
+	}
+}
+
+func TestPatchOldNewWithHeading(t *testing.T) {
+	vaultDir := t.TempDir()
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
+
+	content := "## First\nkeep this phrase\n## Second\nreplace this phrase\n"
+	notePath := filepath.Join(vaultDir, "OldNewH.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	// Scoped to heading -- only replaces within the section.
+	if err := v.Patch("OldNewH", PatchOptions{Heading: "## Second", Old: "replace this phrase", New: "replaced phrase"}); err != nil {
+		t.Fatalf("heading-scoped old/new failed: %v", err)
+	}
+	got, _ := os.ReadFile(notePath)
+	if !strings.Contains(string(got), "replaced phrase") {
+		t.Fatal("scoped old/new did not apply")
+	}
+	// First section should be untouched.
+	if !strings.Contains(string(got), "keep this phrase") {
+		t.Fatal("first section should not be affected")
+	}
+}
+
+func TestPatchOldNewNotFound(t *testing.T) {
+	vaultDir := t.TempDir()
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
+
+	content := "## Section\ncontent\n"
+	notePath := filepath.Join(vaultDir, "OldNewNF.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	err := v.Patch("OldNewNF", PatchOptions{Old: "nonexistent text", New: "replacement"})
+	if err == nil {
+		t.Fatal("expected error when old text not found")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error should say not found, got: %v", err)
+	}
+}
+
+func TestPatchOldNewAmbiguous(t *testing.T) {
+	vaultDir := t.TempDir()
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
+
+	content := "## Section\nrepeat word word again\n"
+	notePath := filepath.Join(vaultDir, "OldNewAmb.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	err := v.Patch("OldNewAmb", PatchOptions{Old: "word", New: "replaced"})
+	if err == nil {
+		t.Fatal("expected ambiguity error for multiple matches")
+	}
+	if !strings.Contains(err.Error(), "ambiguous") {
+		t.Errorf("error should mention ambiguous, got: %v", err)
+	}
+}
+
+func TestPatchOldNewSkipsFrontmatter(t *testing.T) {
+	vaultDir := t.TempDir()
+	v := &Vault{dir: vaultDir, registry: openRegistry(vaultDir)}
+
+	content := "---\ntype: note\nstatus: active\n---\n## Body\nstatus: active in body\n"
+	notePath := filepath.Join(vaultDir, "OldNewFM.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	// "status: active" appears in frontmatter and body. File-wide scope
+	// skips frontmatter, so only body match counts (unique, not ambiguous).
+	if err := v.Patch("OldNewFM", PatchOptions{Old: "status: active in body", New: "status: replaced"}); err != nil {
+		t.Fatalf("old/new should skip frontmatter: %v", err)
+	}
+	got, _ := os.ReadFile(notePath)
+	if !strings.Contains(string(got), "status: replaced") {
+		t.Fatal("body text should be replaced")
+	}
+	// Frontmatter should be untouched.
+	if !strings.Contains(string(got), "type: note") {
+		t.Fatal("frontmatter should be preserved")
+	}
+}

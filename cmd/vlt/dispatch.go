@@ -218,6 +218,8 @@ func dispatchPatch(v *vlt.Vault, params map[string]string, delete bool, timestam
 		Heading:    params["heading"],
 		LineSpec:   params["line"],
 		Content:    params["content"],
+		Old:        params["old"],
+		New:        params["new"],
 		Delete:     delete,
 		Timestamps: timestamps,
 	})

@@ -57,6 +57,8 @@ type PatchOptions struct {
 	Heading    string
 	LineSpec   string
 	Content    string
+	Old        string // Find-and-replace: text to find
+	New        string // Find-and-replace: replacement text
 	Delete     bool
 	Timestamps bool
 }
@@ -183,58 +185,94 @@ func headingLevel(line string) int {
 	return 0
 }
 
+// headingText extracts the text portion of a heading, stripping the # prefix
+// and leading space. Returns empty string for non-headings.
+func headingText(line string) string {
+	trimmed := strings.TrimSpace(line)
+	lvl := headingLevel(trimmed)
+	if lvl == 0 {
+		return ""
+	}
+	if lvl >= len(trimmed) {
+		return ""
+	}
+	return strings.TrimSpace(trimmed[lvl:])
+}
+
 // findSection locates a heading in the given lines and returns its bounds.
-// The heading parameter should include the # prefix (e.g., "## Section A").
-// Heading match is case-insensitive and trims whitespace.
+// The heading parameter may include the # prefix (e.g., "## Section A") for
+// exact level matching, or omit it (e.g., "Section A") for level-insensitive
+// matching. Heading text match is always case-insensitive and trims whitespace.
 // The section extends from the heading to the line before the next heading of
 // equal or higher level (or EOF). This operates on RAW content, not masked.
-// Returns an error if the heading is not found or if multiple identical headings exist.
+// Returns an error if the heading is not found or if multiple headings match.
 func findSection(lines []string, heading string) (sectionBounds, error) {
 	heading = strings.TrimSpace(heading)
 	targetLevel := headingLevel(heading)
-	if targetLevel == 0 {
-		return sectionBounds{}, fmt.Errorf("invalid heading: %q", heading)
-	}
 
-	headingTextLower := strings.ToLower(heading)
-
-	// First pass: count matches to detect ambiguity.
-	var matchLines []int
-	for i, line := range lines {
-		lineTrimmed := strings.TrimSpace(line)
-		if strings.ToLower(lineTrimmed) == headingTextLower {
-			matchLines = append(matchLines, i)
+	// Level-insensitive mode: heading has no # prefix.
+	levelInsensitive := targetLevel == 0
+	if levelInsensitive {
+		// Require non-empty text.
+		if heading == "" {
+			return sectionBounds{}, fmt.Errorf("empty heading")
 		}
 	}
 
-	if len(matchLines) == 0 {
+	// Determine the text to match against (without # prefix).
+	var searchText string
+	if levelInsensitive {
+		searchText = strings.ToLower(heading)
+	} else {
+		searchText = strings.ToLower(headingText(heading))
+	}
+
+	// First pass: find all headings whose text matches.
+	type match struct {
+		line  int
+		level int
+	}
+	var matches []match
+	for i, line := range lines {
+		lvl := headingLevel(line)
+		if lvl == 0 {
+			continue
+		}
+		lineText := strings.ToLower(headingText(line))
+		if lineText == searchText {
+			if levelInsensitive || lvl == targetLevel {
+				matches = append(matches, match{line: i, level: lvl})
+			}
+		}
+	}
+
+	if len(matches) == 0 {
 		return sectionBounds{}, fmt.Errorf("heading %q not found", heading)
 	}
-	if len(matchLines) > 1 {
-		// Build line numbers (1-based for user display).
-		nums := make([]string, len(matchLines))
-		for j, ml := range matchLines {
-			nums[j] = fmt.Sprintf("%d", ml+1)
+	if len(matches) > 1 {
+		nums := make([]string, len(matches))
+		for j, m := range matches {
+			nums[j] = fmt.Sprintf("%d", m.line+1)
 		}
 		return sectionBounds{}, fmt.Errorf("heading %q is ambiguous: found %d matches at lines %s",
-			heading, len(matchLines), strings.Join(nums, ", "))
+			heading, len(matches), strings.Join(nums, ", "))
 	}
 
 	// Exactly one match.
-	i := matchLines[0]
-	contentStart := i + 1
+	m := matches[0]
+	contentStart := m.line + 1
 	contentEnd := len(lines) // default: extends to EOF
 
 	for j := contentStart; j < len(lines); j++ {
 		lvl := headingLevel(lines[j])
-		if lvl > 0 && lvl <= targetLevel {
+		if lvl > 0 && lvl <= m.level {
 			contentEnd = j
 			break
 		}
 	}
 
 	return sectionBounds{
-		HeadingLine:  i,
+		HeadingLine:  m.line,
 		ContentStart: contentStart,
 		ContentEnd:   contentEnd,
 	}, nil
@@ -962,8 +1000,11 @@ func (v *Vault) Write(title, content string, timestamps bool) error {
 	return nil
 }
 
-// Patch performs surgical edits to a note: heading-targeted or line-targeted
-// replace/delete. opts.Delete controls whether content is removed or replaced.
+// Patch performs surgical edits to a note: heading-targeted, line-targeted,
+// or old/new text replacement. opts.Delete controls whether content is removed
+// or replaced. When opts.Old is set, find-and-replace is used within the scope
+// (heading, line, or entire file body if neither is set). Old must match exactly
+// once within the scope; zero or multiple matches are errors.
 // When opts.Timestamps is true (or VLT_TIMESTAMPS=1), updated_at is refreshed.
 func (v *Vault) Patch(title string, opts PatchOptions) error {
 	v.mu.Lock()
@@ -985,8 +1026,13 @@ func (v *Vault) Patch(title string, opts PatchOptions) error {
 	heading := opts.Heading
 	lineSpec := opts.LineSpec
 
+	// Old/New replacement mode.
+	if opts.Old != "" {
+		return v.patchOldNew(path, text, lines, opts)
+	}
+
 	if heading == "" && lineSpec == "" {
-		return fmt.Errorf("patch requires Heading or LineSpec to be set")
+		return fmt.Errorf("patch requires Heading, LineSpec, or Old to be set")
 	}
 
 	content := opts.Content
@@ -1044,6 +1090,77 @@ func (v *Vault) Patch(title string, opts PatchOptions) error {
 			result = append(result, lines[end:]...)
 		}
 	}
+
+	output := strings.Join(result, "\n")
+
+	if timestampsEnabled(opts.Timestamps) {
+		output = ensureTimestamps(output, false, time.Now())
+	}
+
+	outputBytes := []byte(output)
+	if err := os.WriteFile(path, outputBytes, 0644); err != nil {
+		return err
+	}
+	v.registry.register(v.dir, path, outputBytes)
+	return nil
+}
+
+// patchOldNew performs find-and-replace within a scoped region. When heading or
+// line is set, replacement is scoped to that section. When neither is set, the
+// scope is the entire file body (excluding frontmatter). Old must match exactly
+// once within the scope; zero or multiple matches are errors.
+func (v *Vault) patchOldNew(path, text string, lines []string, opts PatchOptions) error {
+	// Determine scope boundaries (0-based line indices, exclusive end).
+	scopeStart := 0
+	scopeEnd := len(lines)
+
+	if opts.Heading != "" {
+		bounds, err := findSection(lines, opts.Heading)
+		if err != nil {
+			// Extract title from path for error context.
+			base := filepath.Base(path)
+			title := strings.TrimSuffix(base, filepath.Ext(base))
+			return fmt.Errorf("%s in %q", err, title)
+		}
+		scopeStart = bounds.ContentStart
+		scopeEnd = bounds.ContentEnd
+	} else if opts.LineSpec != "" {
+		startLine, endLine, err := parseLineSpec(opts.LineSpec)
+		if err != nil {
+			return err
+		}
+		if startLine < 1 || endLine < startLine || startLine > len(lines) || endLine > len(lines) {
+			return fmt.Errorf("invalid line specification: %s", opts.LineSpec)
+		}
+		scopeStart = startLine - 1
+		scopeEnd = endLine
+	} else {
+		// File-wide scope: skip frontmatter.
+		_, bodyStart, _ := ExtractFrontmatter(text)
+		scopeStart = bodyStart
+	}
+
+	// Build the scoped text and count matches.
+	scopeLines := lines[scopeStart:scopeEnd]
+	scopeText := strings.Join(scopeLines, "\n")
+
+	count := strings.Count(scopeText, opts.Old)
+	if count == 0 {
+		return fmt.Errorf("old text not found in scope")
+	}
+	if count > 1 {
+		return fmt.Errorf("old text is ambiguous: found %d matches in scope", count)
+	}
+
+	// Perform the single replacement within scope.
+	newScopeText := strings.Replace(scopeText, opts.Old, opts.New, 1)
+	newScopeLines := strings.Split(newScopeText, "\n")
+
+	// Rebuild the full file.
+	var result []string
+	result = append(result, lines[:scopeStart]...)
+	result = append(result, newScopeLines...)
+	result = append(result, lines[scopeEnd:]...)
 
 	output := strings.Join(result, "\n")
 
