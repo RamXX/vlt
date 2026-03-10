@@ -77,9 +77,16 @@ func main() {
 		die("%v", err)
 	}
 
-	unlock, err := vlt.LockVault(v.Dir(), vlt.IsWriteCommand(cmd))
-	if err != nil {
-		die("cannot lock vault: %v", err)
+	// Write commands always acquire an exclusive lock. Read commands skip
+	// locking by default so they are never blocked by a concurrent writer.
+	// Pass --strict-flock to restore shared-lock behaviour for reads.
+	unlock := func() {} // no-op for lock-free reads
+	if vlt.IsWriteCommand(cmd) || flags["--strict-flock"] {
+		var lockErr error
+		unlock, lockErr = vlt.LockVault(v.Dir(), vlt.IsWriteCommand(cmd))
+		if lockErr != nil {
+			die("cannot lock vault: %v", lockErr)
+		}
 	}
 	defer unlock()
 
@@ -288,6 +295,7 @@ Options:
   pending          Show only pending tasks.
   follow           Include full content of forward-linked notes (read only).
   backlinks        Include full content of notes linking to this one (read only).
+  --strict-flock   Acquire advisory flock for reads too (default: writes only).
   --json           Output in JSON format.
   --yaml           Output in YAML format.
   --csv            Output in CSV format.

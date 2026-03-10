@@ -886,9 +886,8 @@ func TestE2EConcurrentAppendNoCorruption(t *testing.T) {
 	}
 }
 
-// TestE2EConcurrentReadDuringWrite verifies that a reader does not see a
-// partial write. A writer replaces the note body while readers read it;
-// each reader must see either the old or the new body, never a mix.
+// TestE2EConcurrentReadDuringWrite verifies that readers proceed without
+// blocking while a writer holds the exclusive lock (default lock-free reads).
 func TestE2EConcurrentReadDuringWrite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping concurrent integration test in short mode")
@@ -923,7 +922,7 @@ func TestE2EConcurrentReadDuringWrite(t *testing.T) {
 		}
 	}()
 
-	// Launch several readers (shared locks) concurrently.
+	// Launch several readers concurrently (no lock acquired by default).
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
 		go func() {
@@ -932,6 +931,75 @@ func TestE2EConcurrentReadDuringWrite(t *testing.T) {
 				fmt.Sprintf("vault=%s", vaultDir),
 				"read",
 				"file=ReadWrite",
+			)
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Errorf("reader: %v\n%s", err, out)
+				return
+			}
+			readResults <- string(out)
+		}()
+	}
+
+	wg.Wait()
+	close(readResults)
+
+	// Each reader must have returned some content (not blocked/empty).
+	for result := range readResults {
+		hasOld := strings.Contains(result, oldBody)
+		hasNew := strings.Contains(result, newBody)
+		if !hasOld && !hasNew {
+			t.Errorf("reader got neither old nor new content:\n%s", result)
+		}
+	}
+}
+
+// TestE2EStrictFlockBlocksReaders verifies that --strict-flock restores
+// shared-lock behaviour: readers see either old or new content, never a mix.
+func TestE2EStrictFlockBlocksReaders(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping concurrent integration test in short mode")
+	}
+	bin := buildVLT(t)
+	vaultDir := t.TempDir()
+
+	oldBody := "OLD CONTENT INTACT"
+	newBody := "NEW CONTENT INTACT"
+
+	notePath := filepath.Join(vaultDir, "StrictRead.md")
+	if err := os.WriteFile(notePath, []byte("---\nstatus: active\n---\n\n"+oldBody+"\n"), 0644); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	readResults := make(chan string, 20)
+
+	// Writer (exclusive lock).
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		cmd := exec.Command(bin,
+			fmt.Sprintf("vault=%s", vaultDir),
+			"write",
+			"file=StrictRead",
+			fmt.Sprintf("content=%s", newBody),
+		)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("writer: %v\n%s", err, out)
+		}
+	}()
+
+	// Readers with --strict-flock (shared lock).
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			cmd := exec.Command(bin,
+				fmt.Sprintf("vault=%s", vaultDir),
+				"read",
+				"file=StrictRead",
+				"--strict-flock",
 			)
 			out, err := cmd.CombinedOutput()
 			if err != nil {
@@ -954,6 +1022,51 @@ func TestE2EConcurrentReadDuringWrite(t *testing.T) {
 		if hasOld && hasNew {
 			t.Errorf("reader got BOTH old and new content (torn read):\n%s", result)
 		}
+	}
+}
+
+// TestE2EReadDoesNotBlockBehindWriter holds an exclusive flock on the vault
+// and verifies that a default read completes promptly (no shared lock).
+func TestE2EReadDoesNotBlockBehindWriter(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping concurrent integration test in short mode")
+	}
+	bin := buildVLT(t)
+	vaultDir := t.TempDir()
+
+	notePath := filepath.Join(vaultDir, "NoBlock.md")
+	if err := os.WriteFile(notePath, []byte("# NoBlock\n\nContent here.\n"), 0644); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	// Hold an exclusive flock from this process to simulate a long writer.
+	unlock, err := LockVault(vaultDir, true)
+	if err != nil {
+		t.Fatalf("lock vault exclusive: %v", err)
+	}
+	defer unlock()
+
+	// Read without --strict-flock must complete quickly despite the held lock.
+	cmd := exec.Command(bin,
+		fmt.Sprintf("vault=%s", vaultDir),
+		"read",
+		"file=NoBlock",
+	)
+	done := make(chan error, 1)
+	go func() {
+		_, err := cmd.CombinedOutput()
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("read failed: %v", err)
+		}
+		// Success: read completed without blocking.
+	case <-time.After(5 * time.Second):
+		cmd.Process.Kill()
+		t.Fatal("read blocked behind exclusive lock for >5s (should be lock-free)")
 	}
 }
 
@@ -1105,7 +1218,7 @@ func TestE2EConcurrentMoveAndRead(t *testing.T) {
 	}
 }
 
-// TestE2ELockFileCreatedByBinary verifies the real binary creates .vlt.lock.
+// TestE2ELockFileCreatedByBinary verifies write commands create .vlt.lock.
 func TestE2ELockFileCreatedByBinary(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
@@ -1118,18 +1231,82 @@ func TestE2ELockFileCreatedByBinary(t *testing.T) {
 		t.Fatalf("setup: %v", err)
 	}
 
+	// Write commands must still create the lock file.
+	cmd := exec.Command(bin,
+		fmt.Sprintf("vault=%s", vaultDir),
+		"append",
+		"file=LockCheck",
+		"content=extra line",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("vlt append: %v\n%s", err, out)
+	}
+
+	lockPath := filepath.Join(vaultDir, ".vlt.lock")
+	if _, err := os.Stat(lockPath); err != nil {
+		t.Fatalf(".vlt.lock was not created by write command: %v", err)
+	}
+}
+
+// TestE2EReadDoesNotCreateLockFile verifies reads skip locking entirely.
+func TestE2EReadDoesNotCreateLockFile(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	bin := buildVLT(t)
+	vaultDir := t.TempDir()
+
+	notePath := filepath.Join(vaultDir, "NoLock.md")
+	if err := os.WriteFile(notePath, []byte("# NoLock\n"), 0644); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
 	cmd := exec.Command(bin,
 		fmt.Sprintf("vault=%s", vaultDir),
 		"read",
-		"file=LockCheck",
+		"file=NoLock",
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("vlt read: %v\n%s", err, out)
 	}
+	if !strings.Contains(string(out), "# NoLock") {
+		t.Fatalf("unexpected output: %s", out)
+	}
+
+	lockPath := filepath.Join(vaultDir, ".vlt.lock")
+	if _, err := os.Stat(lockPath); err == nil {
+		t.Fatal(".vlt.lock should not be created by a default read")
+	}
+}
+
+// TestE2EStrictFlockCreatesLockFile verifies --strict-flock creates .vlt.lock for reads.
+func TestE2EStrictFlockCreatesLockFile(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	bin := buildVLT(t)
+	vaultDir := t.TempDir()
+
+	notePath := filepath.Join(vaultDir, "StrictLock.md")
+	if err := os.WriteFile(notePath, []byte("# StrictLock\n"), 0644); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	cmd := exec.Command(bin,
+		fmt.Sprintf("vault=%s", vaultDir),
+		"read",
+		"file=StrictLock",
+		"--strict-flock",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("vlt read --strict-flock: %v\n%s", err, out)
+	}
 
 	lockPath := filepath.Join(vaultDir, ".vlt.lock")
 	if _, err := os.Stat(lockPath); err != nil {
-		t.Fatalf(".vlt.lock was not created by the binary: %v", err)
+		t.Fatalf(".vlt.lock should be created with --strict-flock: %v", err)
 	}
 }
